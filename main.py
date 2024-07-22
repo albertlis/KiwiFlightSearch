@@ -1,5 +1,5 @@
 import json
-import logging
+import re
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -7,7 +7,6 @@ from datetime import date
 from datetime import datetime, timedelta
 from io import StringIO
 
-import schedule
 import yagmail
 import yaml
 from easydict import EasyDict
@@ -76,8 +75,24 @@ def get_driver() -> webdriver.Chrome:
     options.add_argument("window-size=1000,1080")
     options.add_argument('--headless')
     options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/2b7c7")
-    return webdriver.Chrome(service=ChromeService(CHROME_DRIVER_PATH), options=options)
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/2b7c7"
+    )
+
+    # Set language to Polish
+    options.add_argument("--lang=pl-PL")
+
+    # Set geolocation to Poland (latitude and longitude for Warsaw)
+    params = {
+        "latitude": 52.2297,
+        "longitude": 21.0122,
+        "accuracy": 100
+    }
+    options.set_capability('goog:chromeOptions', {"args": ["--lang=pl-PL"]})
+
+    driver = webdriver.Chrome(service=ChromeService(CHROME_DRIVER_PATH), options=options)
+    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", params)
+
+    return driver
 
 
 def click_element(wait: WebDriverWait, element: tuple[str, str]) -> None:
@@ -86,6 +101,7 @@ def click_element(wait: WebDriverWait, element: tuple[str, str]) -> None:
 
 
 def get_month_name(wait: WebDriverWait) -> str:
+    time.sleep(10)
     month_button = wait.until(EC.element_to_be_clickable(MONTH_BUTTON))
     return month_button.text.lower()
 
@@ -94,6 +110,10 @@ def read_iata_codes(file_path: str) -> list[str]:
     with open(file_path, 'rt') as f:
         iata_codes: list[str] = f.read().split('\n')
     return [iata.strip() for iata in iata_codes]
+
+
+def extract_price(s: str) -> int:
+    return int(match.group()) if (match := re.search(r'\d+', s)) else None
 
 
 def gather_flight_info(
@@ -130,7 +150,7 @@ def gather_flight_info(
                 print("Element not found, here is the HTML of the current element:", day.get_attribute('outerHTML'))
                 raise
             try:
-                price: int = int(price_div.text.split(' ')[0])
+                price = extract_price(price_div.text)
             except ValueError:
                 print("Incorrect price", price_div.text, "HTML: ", price_div.get_attribute('outerHTML'))
                 raise
@@ -147,6 +167,28 @@ def gather_flight_info(
     return flight_info_list
 
 
+def debug_get_origin_input_value(driver: webdriver.Chrome) -> str:
+    try:
+        # Locate the input field within the specified div
+        origin_input = driver.find_element(By.CSS_SELECTOR,
+                                           'div[data-test="SearchPlaceField-origin"] input[data-test="SearchField-input"]')
+        print(origin_input.get_attribute('value'))
+    except NoSuchElementException:
+        print("Origin input field not found.")
+        raise
+
+
+def debug_print_all_place_picker_text(driver: webdriver.Chrome) -> None:
+    try:
+        # Locate all the div elements containing the text to print
+        place_picker_rows = driver.find_elements(By.CSS_SELECTOR, 'div[data-test^="PlacePickerRow-"]')
+        for row in place_picker_rows:
+            print(row.text)
+    except NoSuchElementException:
+        print("PlacePickerRow elements not found.")
+        raise
+
+
 def get_flights(
         wait: WebDriverWait, start_airports: list[str], start_airports_names: list[str], direction: str
 ) -> list[dict[str, str]]:
@@ -155,10 +197,17 @@ def get_flights(
         click_element(wait, REMOVE_START_AIRPORT)
         click_element(wait, CHOOSE_START_AIRPORT)
         choose_start_airport = wait.until(EC.element_to_be_clickable(CHOOSE_START_AIRPORT))
-        choose_start_airport.send_keys(start_airport_code)
+        time.sleep(10)
+        try:
+            choose_start_airport.send_keys(start_airport_code)
+        except:
+            debug_get_origin_input_value(wait._driver)
+            debug_print_all_place_picker_text(wait._driver)
+            raise
+
         click_element(wait, START_AIRPORT)
 
-        iata_codes: list[str] = read_iata_codes(f'{start_airport_code}_iata_codes.txt')
+        iata_codes: list[str] = read_iata_codes(f'{start_airport_code.lower()}_iata_codes.txt')
         for dst_airport_code in tqdm(iata_codes, desc=start_airport_name):
             destination = wait.until(EC.element_to_be_clickable(DESTINATION))
             destination.click()
@@ -309,7 +358,7 @@ def convert_prices(data: list) -> list:
 def webscrap_flights() -> None:
     driver: webdriver.Chrome = get_driver()
     driver.get(URL)
-    wait: WebDriverWait = WebDriverWait(driver, 60)
+    wait: WebDriverWait = WebDriverWait(driver, 60 * 5)
 
     # Accept cookies
     click_element(wait, COOKIES_BUTTON)
@@ -379,14 +428,14 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-    schedule.every().saturday.at("09:00").do(main)
-    while True:
-        try:
-            schedule.run_pending()
-        except Exception as e:
-            logging.exception("An error occurred:")
-            print(e)
-            time.sleep(60 * 60)
-        time.sleep(1)
-    # main()
+    # logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+    # schedule.every().saturday.at("09:00").do(main)
+    # while True:
+    #     try:
+    #         schedule.run_pending()
+    #     except Exception as e:
+    #         logging.exception("An error occurred:")
+    #         print(e)
+    #         time.sleep(60 * 60)
+    #     time.sleep(1)
+    main()
