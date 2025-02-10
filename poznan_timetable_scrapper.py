@@ -1,7 +1,6 @@
 import json
 import re
 from collections import defaultdict
-from typing import Dict, List
 
 from selenium.webdriver.common.by import By
 from tqdm import tqdm
@@ -72,7 +71,8 @@ class PoznanTimetableScrapper(Driver):
             'departures': self.get_timetable(self.url_depertuares)
         }
 
+
 if __name__ == '__main__':
     timetable = PoznanTimetableScrapper().get_full_timetable()
-    with open('poznan_timetable.json', 'wt', encoding='utf-8') as f:
+    with open('timetables/POZ_timetable.json', 'wt', encoding='utf-8') as f:
         json.dump(timetable, f, indent=2, ensure_ascii=False)

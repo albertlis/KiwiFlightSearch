@@ -5,13 +5,13 @@ name = "pypi"
 
 [packages]
 beautifulsoup4 = "*"
-easydict = "*"
-pyyaml = "*"
 requests-html = "*"
 schedule = "*"
 selenium = "*"
 webdriver-manager = "*"
 yagmail = "*"
+babel = "*"
+dacite = "*"
 
 [dev-packages]
 jupyter = "*"

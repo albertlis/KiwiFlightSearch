@@ -1,4 +1,6 @@
+import logging
 import os
+import pickle
 
 import yagmail
 from dotenv import load_dotenv
@@ -15,10 +17,14 @@ def send_mail(print_info: str) -> None:
 
 
 def main() -> None:
-    kiwi_scrapper = KiwiScrapper('marzec', 'czerwiec', ['POZ', 'WRO'])
+    iata_list = ['KTW', 'POZ', 'WRO']
+    kiwi_scrapper = KiwiScrapper('marzec', 'czerwiec', iata_list)
     flights_data = kiwi_scrapper.webscrap_flights()
 
-    flights_processor = FlightProcessor()
+    # with open('date_price_list.pkl', 'rb') as f:
+    #     flights_data = pickle.load(f)
+
+    flights_processor = FlightProcessor(500, 10, 11, iata_list)
     print_info = flights_processor.process_flights_info(flights_data)
     with open('flights.txt', 'wt', encoding='utf-8') as f:
         f.write(print_info)
@@ -26,7 +32,7 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    # logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # schedule.every().saturday.at("09:00").do(main)
     # while True:
     #     try:
