@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flight Deals by Duration</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        details {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 1em;
+            background-color: #f9f9f9;
+        }
+
+        summary {
+            font-weight: bold;
+            padding: 1em;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .destination-content {
+            padding: 0 1em 1em;
+        }
+
+        /* Table style for readable trips */
+        .trips-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+
+        .trips-table th,
+        .trips-table td {
+            padding: 0.75em;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        .trips-table th {
+            background-color: #007bff;
+            color: #fff;
+            text-align: left;
+        }
+
+        .trips-table tbody tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+
+        .trips-table tbody tr:hover {
+            background-color: #e9e9e9;
+        }
+
+        time {
+            font-style: normal;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+<h1>Flight Deals by Duration</h1>
+{% for dest in destinations %}
+    <details>
+        <summary>
+            Destination: {{ dest.destination_name }} ({{ dest.iata }}) -
+            Lowest Price: {{ dest.lowest_price }}zł
+        </summary>
+        <div class="destination-content">
+            <table class="trips-table">
+                <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Duration</th>
+                    <th>Outbound</th>
+                    <th>Return</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for trip in dest.trips %}
+                    <tr>
+                        <td><strong>{{ trip.total_price }}zł</strong></td>
+                        <td>{{ trip.duration }} days</td>
+                        <td>
+                            {{ trip.start_date }}<br>
+                            {{ trip.start_name }} ({{ trip.start_code }})<br>
+                            <time>{{ trip.start_time }}</time>
+                        </td>
+                        <td>
+                            {{ trip.back_date }}<br>
+                            {{ trip.back_name }} ({{ trip.back_code }})<br>
+                            <time>{{ trip.back_time }}</time>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+{% endfor %}
+</body>
+</html>
+

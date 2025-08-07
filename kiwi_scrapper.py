@@ -6,6 +6,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
+from time import sleep
 
 from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver import Keys
@@ -36,20 +37,20 @@ class KiwiScrapper(Driver):
         self.start_month = start_month
         self.end_month = end_month
         self.start_iata_airports = start_iata_airports
-        self.iata_to_name = self.load_iata_to_city_name()
         self.interesting_iatas = self.load_interesting_iatas()
+        self.iata_to_name = self.load_iata_to_city_name()
         self.price_span_locator = (By.XPATH, ".//div[@data-test='NewDatepickerPrice']/span")
         self.price_div_locator = (By.XPATH, ".//div[@data-test='NewDatepickerPrice']")
-
-    @staticmethod
-    def load_iata_to_city_name() -> dict[str, str]:
-        with open('iata_to_city.json', 'rt', encoding='utf-8') as f:
-            return json.load(f)
 
     @staticmethod
     def load_interesting_iatas() -> set[str]:
         with open('interesting_iatas.txt', 'rt') as f:
             return set(f.read().split('\n'))
+
+    @staticmethod
+    def load_iata_to_city_name() -> dict[str, str]:
+        with open('iata_to_city.json', 'rt', encoding='utf-8') as f:
+            return json.load(f)
 
     @staticmethod
     def read_iata_codes(file_path: Path) -> list[str]:
@@ -84,8 +85,10 @@ class KiwiScrapper(Driver):
             try:
                 wait.until(EC.presence_of_all_elements_located(self.price_span_locator))
             except TimeoutException:
+                logging.warning('Timeout while waiting for price elements')
                 break
 
+            sleep(5)
             calendar_days = wait.until(EC.presence_of_all_elements_located(self.calendar_day_locator))
             if click_count == 0:
                 calendar_days = calendar_days[1:]
@@ -127,12 +130,17 @@ class KiwiScrapper(Driver):
     def get_flights(self, wait: WebDriverWait, direction: str, desc: str) -> list[FlightInfo]:
         date_price_list: list[FlightInfo] = []
         start_airports_names = [self.iata_to_name[iata_airport] for iata_airport in self.start_iata_airports]
+
         for start_airport_code, start_airport_name in zip(self.start_iata_airports, start_airports_names):
             iatas_dir = Path(f'airport_iata_codes/{start_airport_code.upper()}_iata_codes.txt')
             iata_codes: list[str] = self.read_iata_codes(iatas_dir)
             iata_codes = list(set(iata_codes) & self.interesting_iatas)
             for dst_airport_code in tqdm(iata_codes, desc=f'{desc} {start_airport_name}'):
+                # if dst_airport_code != 'BGY':
+                #     continue
+
                 if direction == 'poland_to_anywhere':
+                    logging.debug(f'{start_airport_name} -> {dst_airport_code}')
                     self.choose_start_airport(wait, start_airport_code)
                     destination_airport_name = self.choose_destination_airport(wait, dst_airport_code)
                     date_price_list.extend(
@@ -141,6 +149,7 @@ class KiwiScrapper(Driver):
                         )
                     )
                 else:
+                    logging.debug(f'{dst_airport_code} -> {start_airport_name}')
                     self.choose_start_airport(wait, dst_airport_code)
                     destination_airport_name = self.choose_destination_airport(wait, start_airport_code)
                     date_price_list.extend(
@@ -160,6 +169,12 @@ class KiwiScrapper(Driver):
         self.setup_main_page(wait)
 
         poland_to_anywhere = self.get_flights(wait, 'poland_to_anywhere', 'From')
+        with open('poland_to_anywhere.pkl', 'wb') as f:
+            pickle.dump(poland_to_anywhere, f, pickle.HIGHEST_PROTOCOL)
+
+        # with open('poland_to_anywhere.pkl', 'rb') as f:
+        #     poland_to_anywhere = pickle.load(f)
+
         anywhere_to_poland = self.get_flights(wait, 'anywhere_to_poland', 'To')
 
         flights_data = dict(poland_to_anywhere=poland_to_anywhere, anywhere_to_poland=anywhere_to_poland)

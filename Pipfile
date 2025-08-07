@@ -12,6 +12,7 @@ webdriver-manager = "*"
 yagmail = "*"
 babel = "*"
 dacite = "*"
+playwright = "*"
 
 [dev-packages]
 jupyter = "*"
