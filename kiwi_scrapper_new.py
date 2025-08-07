@@ -63,6 +63,25 @@ class KiwiScrapper(Driver):
             date_obj -= timedelta(days=1)
         return date_obj.isocalendar()[1]
 
+    def _wait_for_prices_to_load(self, page: Page, timeout: int = 10):
+        """Waits until each calendar day has a loaded price span (dash or number)."""
+        try:
+            page.wait_for_function(
+                '''() => {
+                    const days = document.querySelectorAll('div[data-test="CalendarDay"]');
+                    const spans = document.querySelectorAll('div[data-test="NewDatepickerPrice"] span');
+                    return days.length > 0
+                        && spans.length === days.length
+                        && Array.from(spans).every(el => {
+                            const text = el.innerText.trim();
+                            return text.length > 0 && text !== 'Ładowanie';
+                        });
+                }''',
+                timeout=timeout * 1000
+            )
+        except PlaywrightTimeoutError:
+            raise PlaywrightTimeoutError(f"Prices did not load within {timeout} seconds.")
+
     def gather_flight_info(
             self, page: Page, start_airport: str, start_airport_name: str, destination_airport: str,
             destination_airport_name: str
@@ -78,27 +97,17 @@ class KiwiScrapper(Driver):
         click_count = 0
         while self.end_month not in self.get_month_name(page) and click_count < 12:
             try:
-                page.locator(self.price_span_locator).first.wait_for(timeout=10000)
+                self._wait_for_prices_to_load(page)
             except PlaywrightTimeoutError:
                 logging.warning('Timeout while waiting for price elements')
                 break
 
-            # Wait for calendar to be stable
-            page.wait_for_selector(self.calendar_day_locator, state='visible')
+            # Wait for calendar to be fully rendered
+            page.wait_for_selector(self.calendar_day_locator, state='attached', timeout=10000)
 
             calendar_days = page.locator(self.calendar_day_locator).all()
             if click_count == 0:
-                # In the first month view, some days from the previous month might be shown.
-                # The original implementation skipped the first one, this is a more robust way.
-                current_month_found = False
-                temp_calendar_days = []
-                for day in calendar_days:
-                    if day.get_attribute('data-pika-day'): # Heuristic for active month days
-                        current_month_found = True
-                    if current_month_found:
-                        temp_calendar_days.append(day)
-                calendar_days = temp_calendar_days
-
+                calendar_days = calendar_days[1:]
 
             for day in calendar_days:
                 date_value_str: str | None = day.get_attribute('data-value')
@@ -128,7 +137,7 @@ class KiwiScrapper(Driver):
 
                 price = self.extract_price(price_text)
                 if price is None:
-                    if price_text.strip(): # Log only if there was text that couldn't be parsed
+                    if price_text.strip():  # Log only if there was text that couldn't be parsed
                         logging.warning(f"Could not extract price from '{price_text}' for date {date_value_str}")
                     continue
 
