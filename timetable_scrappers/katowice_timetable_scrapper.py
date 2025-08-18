@@ -53,5 +53,5 @@ class KatowiceTimetableScrapper:
 
 if __name__ == '__main__':
     timetable = KatowiceTimetableScrapper().get_full_timetable()
-    with open('timetables/KTW_timetable.json', 'wt', encoding='utf-8') as f:
+    with open('../timetables/KTW_timetable.json', 'wt', encoding='utf-8') as f:
         json.dump(timetable, f, indent=2, ensure_ascii=False)

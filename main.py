@@ -1,3 +1,7 @@
+"""
+Legacy script
+"""
+
 import logging
 import os
 import pickle
@@ -5,10 +9,9 @@ import pickle
 import yagmail
 from dotenv import load_dotenv
 
-from flights_processor_weekends import FlightProcessorWeekends
-from flights_processor_duration import FlightProcessorDuration
-from kiwi_scrapper import KiwiScrapper
-# from kiwi_scrapper_new import KiwiScrapper
+from kiwiflight.scraping.playwright_scraper import PlaywrightScraper
+from kiwiflight.processing.weekends import FlightProcessorWeekends
+from kiwiflight.processing.duration import FlightProcessorDuration
 
 
 def send_mail(print_info: str) -> None:
@@ -19,16 +22,15 @@ def send_mail(print_info: str) -> None:
 
 
 def main() -> None:
-    iata_list = ['WRO']
-    # iata_list = ['POZ']
-    # kiwi_scrapper = KiwiScrapper('wrzesień', 'październik', iata_list)
-    # flights_data = kiwi_scrapper.webscrap_flights()
+    iata_list = ['WRO', 'POZ', 'KTW']
+    scraper = PlaywrightScraper('sierpień', 'październik', iata_list)
+    flights_data = scraper.webscrap_flights()
 
-    with open('date_price_list.pkl', 'rb') as f:
-        flights_data = pickle.load(f)
-
-    flights_processor = FlightProcessorWeekends(500, 10, 11, iata_list)
-    # flights_processor = FlightProcessorDuration(400, 7, 10, iata_list, start_date="28.08.2025", end_date="15.09.2025")
+    # with open('date_price_list.pkl', 'rb') as f:
+    #     flights_data = pickle.load(f)
+    print(flights_data)
+    # flights_processor = FlightProcessorWeekends(500, 10, 11, iata_list)
+    flights_processor = FlightProcessorDuration(500, 7, 10, iata_list, start_date="22.08.2025", end_date="22.09.2025")
     print_info = flights_processor.process_flights_info(flights_data)
     with open('flights.html', 'wt', encoding='utf-8') as f:
         f.write(print_info)

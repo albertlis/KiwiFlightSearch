@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kiwiflightsearch"
+version = "0.1.0"
+description = "Flight deal scraper & processor for Kiwi (weekend and duration trips)"
+authors = [{name="Your Name"}]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["flights", "scraper", "travel", "kiwi"]
+
+# Runtime dependencies managed by uv (previously Pipenv)
+dependencies = [
+  "beautifulsoup4",
+  "selenium",
+  "webdriver-manager",
+  "yagmail",
+  "babel",
+  "dacite",
+  "playwright",
+  "jinja2",
+  "tqdm",
+  "python-dotenv",
+  "lxml",
+]
+
+[project.scripts]
+kiwiflight = "kiwiflight.pipeline:main_cli"
+
+[dependency-groups]
+# Development / tooling dependencies (install with: uv sync --group dev)
+dev = [
+  "black",
+  "isort",
+  "ruff",
+  "mypy",
+  "jupyter",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kiwiflight*"]
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
