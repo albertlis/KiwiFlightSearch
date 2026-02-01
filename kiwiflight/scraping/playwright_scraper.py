@@ -44,7 +44,7 @@ class _PlaywrightDriver:
 
     @staticmethod
     def load_failing_iatas() -> dict[str, str]:
-        with open('../failing_iatas.json', 'rt', encoding='utf-8') as f:
+        with open('failing_iatas.json', 'rt', encoding='utf-8') as f:
             return json.load(f)
 
     def get_page(self, playwright):  # type: ignore[no-untyped-def]
@@ -105,12 +105,12 @@ class PlaywrightScraper(_PlaywrightDriver):
 
     @staticmethod
     def _load_interesting_iatas() -> set[str]:
-        with open('../interesting_iatas.txt', 'rt') as f:
+        with open('interesting_iatas.txt', 'rt') as f:
             return set(filter(None, f.read().split('\n')))
 
     @staticmethod
     def _load_iata_to_city_name() -> dict[str, str]:
-        with open('../iata_to_city.json', 'rt', encoding='utf-8') as f:
+        with open('iata_to_city.json', 'rt', encoding='utf-8') as f:
             return json.load(f)
 
     @staticmethod
@@ -146,7 +146,7 @@ class PlaywrightScraper(_PlaywrightDriver):
         clicks = 0
         while self.start_month not in self.get_month_name(page) and clicks < 12:
             clicks += 1;
-            page.locator(self.next_button_locator).click()
+            page.locator(self.next_button_locator).first.click()
         clicks = 0
         while self.end_month not in self.get_month_name(page) and clicks < 12:
             self._wait_for_prices(page)
@@ -192,7 +192,7 @@ class PlaywrightScraper(_PlaywrightDriver):
         collected: list[FlightInfo] = []
         start_airports_names = [self.iata_to_name[i] for i in self.start_iata_airports]
         for start_code, start_name in zip(self.start_iata_airports, start_airports_names):
-            iatas_file = Path(f'../airport_iata_codes/{start_code.upper()}_iata_codes.txt')
+            iatas_file = Path(f'airport_iata_codes/{start_code.upper()}_iata_codes.txt')
             iata_codes = list(set(self._read_iata_codes(iatas_file)) & self.interesting_iatas)
             for dst_code in tqdm(iata_codes, desc=f'{desc} {start_name}'):
                 if direction == 'poland_to_anywhere':

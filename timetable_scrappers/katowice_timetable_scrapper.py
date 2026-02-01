@@ -6,9 +6,9 @@ from bs4 import BeautifulSoup
 
 class KatowiceTimetableScrapper:
     def __init__(self):
-        self.arrivals_html_file = 'html_for_scrapping/KTW_timetable_arrivals.html'
-        self.departures_html_file = 'html_for_scrapping/KTW_timetable_departures.html'
-        with open('ktw_airports_to_iata_mapping.json', 'rt', encoding='utf-8') as f:
+        self.arrivals_html_file = '../html_for_scrapping/KTW_timetable_arrivals.html'
+        self.departures_html_file = '../html_for_scrapping/KTW_timetable_departures.html'
+        with open('../ktw_airports_to_iata_mapping.json', 'rt', encoding='utf-8') as f:
             self.airports_to_iata = json.load(f)
 
     def get_timetable(self, soup: BeautifulSoup) -> dict[str, list[dict[str, str]]]:

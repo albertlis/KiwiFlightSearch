@@ -2,7 +2,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import TypeAlias
 
@@ -85,6 +85,15 @@ class BaseFlightProcessor(ABC):
         return filtered
 
     @staticmethod
+    def filter_non_direct_flights(available_trips: TripsDict) -> TripsDict:
+        filtered: TripsDict = defaultdict(list)
+        for iata, trips in available_trips.items():
+            for trip in trips:
+                if trip['start_flight'].start_time and trip['back_flight'].back_time:
+                    filtered[iata].append(trip)
+        return filtered
+
+    @staticmethod
     def group_flights_by_key(data: list, key: str) -> dict:
         grouped = defaultdict(list)
         for item in data:
@@ -117,5 +126,3 @@ class BaseFlightProcessor(ABC):
     @abstractmethod
     def process_flights_info(self, data: dict[str, list[FlightInfo]]) -> str:  # pragma: no cover
         raise NotImplementedError
-
-

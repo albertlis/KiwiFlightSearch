@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional, Iterator
+from typing import Iterator, Optional
 
 from bs4 import BeautifulSoup
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -75,7 +75,6 @@ class FlightProcessorDuration(BaseFlightProcessor):
                 b.back_time = self.get_flight_time(b, 'arrivals')
         return available_trips
 
-    # ---------------- formatting -----------------
     def _format_trips_to_html(self, trips: TripsDict) -> str:
         sorted_destinations = sorted(
             trips.items(),
@@ -126,9 +125,10 @@ class FlightProcessorDuration(BaseFlightProcessor):
         poland_to_anywhere_filtered = self.filter_by_price(poland_to_anywhere, self.price_limit)
         anywhere_to_poland_filtered = self.filter_by_price(anywhere_to_poland, self.price_limit)
         grouped_poland_to_anywhere = self.group_flights_by_key(poland_to_anywhere_filtered, 'end')
-        grouped_anywhere_to_poland = self.group_flights_by_key(anywhere_to_pololand_filtered, 'start')
+        grouped_anywhere_to_poland = self.group_flights_by_key(anywhere_to_poland_filtered, 'start')
         available_trips = self.find_available_trips(grouped_poland_to_anywhere, grouped_anywhere_to_poland)
         available_trips = self.filter_by_total_price_flights(available_trips)
         available_trips = self.add_flight_times(available_trips)
+        available_trips = self.filter_non_direct_flights(available_trips)
         return self._format_trips_to_html(available_trips)
 

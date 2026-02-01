@@ -15,8 +15,6 @@ keywords = ["flights", "scraper", "travel", "kiwi"]
 # Runtime dependencies managed by uv (previously Pipenv)
 dependencies = [
   "beautifulsoup4",
-  "selenium",
-  "webdriver-manager",
   "yagmail",
   "babel",
   "dacite",
@@ -25,6 +23,7 @@ dependencies = [
   "tqdm",
   "python-dotenv",
   "lxml",
+  "schedule",
 ]
 
 [project.scripts]
