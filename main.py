@@ -53,6 +53,7 @@ if __name__ == '__main__':
     logging.getLogger('selenium').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    # main()
     schedule.every().day.at("15:30").do(main)
     while True:
         try:
@@ -62,4 +63,3 @@ if __name__ == '__main__':
             print(e)
             time.sleep(60 * 60)
         time.sleep(1)
-    # main()

@@ -24,6 +24,7 @@ dependencies = [
   "python-dotenv",
   "lxml",
   "schedule",
+  "playwright-stealth>=2.0.1",
 ]
 
 [project.scripts]

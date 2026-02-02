@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
+from playwright_stealth import Stealth
 from tqdm import tqdm
 
 from ..models import FlightInfo
@@ -21,9 +22,9 @@ from ..models import FlightInfo
 class _PlaywrightDriver:
     def __init__(self):
         self.failing_iatas_to_names = self.load_failing_iatas()
-        self.url = 'https://www.kiwi.com/pl/'
+        self.url = 'https://www.kiwi.com/pl/?currency=PLN'
         self.timeout = 30 * 1000
-        # Locators
+
         self.month_button_locator = "button[data-test='DatepickerMonthButton']"
         self.cookies_button_locator = "button[data-test='CookiesPopup-Accept']"
         self.discard_cookies_locator = "button[data-test='CookiesPopup-Settings-save']"
@@ -47,16 +48,56 @@ class _PlaywrightDriver:
         with open('failing_iatas.json', 'rt', encoding='utf-8') as f:
             return json.load(f)
 
-    def get_page(self, playwright):  # type: ignore[no-untyped-def]
-        browser = playwright.chromium.launch(headless=True, args=["--window-size=800,800"])
-        context = browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-            locale="pl-PL", geolocation={"latitude": 52.2297, "longitude": 21.0122}, permissions=["geolocation"],
-            viewport={"width": 800, "height": 800},
+    def get_page(self, playwright):
+        args = [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-infobars",
+            "--window-size=800,800",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--disable-gpu",
+        ]
+
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=args,
         )
-        context.route("**/*.{png,jpg,jpeg,webp,svg}", lambda route: route.abort())
+
+
+        context = browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            locale="pl-PL",
+            timezone_id="Europe/Warsaw",
+            geolocation={"latitude": 52.2297, "longitude": 21.0122},
+            permissions=["geolocation"],
+            viewport={"width": 800, "height": 800},  #
+            screen={"width": 800, "height": 800},
+            color_scheme="light",
+            has_touch=False,
+            java_script_enabled=True,
+        )
+
+        context.route("**/*.{png,jpg,jpeg,webp,svg,gif}", lambda route: route.abort())
+        context.add_cookies([
+            {
+                "name": "currency",
+                "value": "PLN",
+                "domain": ".kiwi.com",
+                "path": "/"
+            },
+            {
+                "name": "kw_currency",
+                "value": "PLN",
+                "domain": ".kiwi.com",
+                "path": "/"
+            }
+        ])
+
         page = context.new_page()
+        Stealth().apply_stealth_sync(page)
         page.set_default_timeout(self.timeout)
+
         return browser, page
 
     def setup_main_page(self, page: Page) -> None:
