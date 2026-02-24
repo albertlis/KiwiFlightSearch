@@ -88,6 +88,14 @@ timetables/
 
 Each resulting JSON contains **arrivals** and **departures** keyed by IATA code, and is later used by the processing layer to enrich flight results with real departure/arrival times.
 
+> Note about POZ airport: due to site protections and dynamic content loading on the airport's website, `POZ_timetable_scrapper.py` could not be reliably automated. In practice, you need to save the timetable page manually from your browser and place the HTML file into the `html_for_scrapping/` folder.
+>
+> How to do this (simple options):
+> - Open the POZ timetable page in your browser and press F12 to open Developer Tools (Inspector).
+> - Locate the element containing the timetable (Elements tab). Right-click the relevant node and choose "Save as..." if available, or choose "Copy → OuterHTML" and paste the content into a new HTML file.
+> - Save the file into `html_for_scrapping/`, e.g. `POZ_timetable_departures.html` (or `POZ_timetable_arrivals.html`).
+> - Then run the processor script in `html_timetable_processors/` to parse that file and generate `timetables/POZ_timetable.json`.
+
 ---
 
 ## Installation

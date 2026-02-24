@@ -31,12 +31,14 @@ class BasePlaywrightDriver:
             "--disable-dev-shm-usage",
             "--disable-accelerated-2d-canvas",
             "--disable-gpu",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-site-isolation-trials",
         ]
 
     def get_page(self, playwright):
         """Create and return a (browser, page) tuple with stealth applied."""
         browser = playwright.chromium.launch(
-            headless=True,
+            headless=False,
             args=self._get_browser_args(),
         )
 
@@ -44,7 +46,7 @@ class BasePlaywrightDriver:
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/121.0.0.0 Safari/537.36"
+                "Chrome/131.0.0.0 Safari/537.36"
             ),
             locale="pl-PL",
             timezone_id="Europe/Warsaw",
@@ -55,6 +57,14 @@ class BasePlaywrightDriver:
             color_scheme="light",
             has_touch=False,
             java_script_enabled=True,
+            extra_http_headers={
+                "Accept-Language": "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
+                "Upgrade-Insecure-Requests": "1",
+            },
         )
 
         # Skip loading images to speed up scraping
@@ -62,6 +72,14 @@ class BasePlaywrightDriver:
             "**/*.{png,jpg,jpeg,webp,svg,gif}",
             lambda route: route.abort(),
         )
+
+        # Mask headless-mode fingerprints via JS overrides
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['pl-PL', 'pl', 'en-US', 'en'] });
+            window.chrome = { runtime: {} };
+        """)
 
         page = context.new_page()
         Stealth().apply_stealth_sync(page)
