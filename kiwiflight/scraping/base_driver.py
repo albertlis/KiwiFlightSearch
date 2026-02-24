@@ -1,6 +1,19 @@
 import logging
 from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
+from bs4 import BeautifulSoup
+
+
+def pretty_format_html(html: str) -> str:
+    """Return a pretty-formatted HTML string using BeautifulSoup with the 'lxml' parser.
+
+    No fallbacks: if BeautifulSoup or the 'lxml' parser is not available this will raise an
+    ImportError / ValueError so the caller knows a required dependency is missing.
+    """
+    if not html:
+        return html
+    soup = BeautifulSoup(html, "lxml")
+    return soup.prettify()
 
 
 class BasePlaywrightDriver:

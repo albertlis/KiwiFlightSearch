@@ -4,9 +4,8 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 from kiwiflight.logging_config import setup_logging
-from bs4 import BeautifulSoup
 
-from kiwiflight.scraping.base_driver import BasePlaywrightDriver
+from kiwiflight.scraping.base_driver import BasePlaywrightDriver, pretty_format_html
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +13,6 @@ TIMETABLE_URL = "https://www.katowice-airport.com/pl/dla-pasazera/rozklady-lotow
 
 ARRIVALS_OUTPUT = Path(__file__).resolve().parents[1] / "html_for_scrapping" / "KTW_timetable_arrivals.html"
 DEPARTURES_OUTPUT = Path(__file__).resolve().parents[1] / "html_for_scrapping" / "KTW_timetable_departures.html"
-
-
-def _pretty_format_html(html: str) -> str:
-    """Return a pretty-formatted HTML string using BeautifulSoup with the 'lxml' parser only.
-
-    No fallbacks: if BeautifulSoup or the 'lxml' parser is not available this will raise an
-    ImportError / ValueError so the caller knows a required dependency is missing.
-    """
-    if not html:
-        return html
-
-    soup = BeautifulSoup(html, "lxml")
-    return soup.prettify()
 
 
 class KTWTimetableScraper(BasePlaywrightDriver):
@@ -74,7 +60,7 @@ class KTWTimetableScraper(BasePlaywrightDriver):
         self._wait_for_timetable(page)
         html = self._get_timetable_section_html(page)
         # Pretty-format HTML before saving
-        pretty_html = _pretty_format_html(html)
+        pretty_html = pretty_format_html(html)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(pretty_html, encoding="utf-8")
         logger.info(f"Saved {label_text} -> {output_path} ({len(pretty_html)} characters)")
