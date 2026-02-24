@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional, Iterator
 
 from bs4 import BeautifulSoup
 from jinja2 import Environment, FileSystemLoader, select_autoescape

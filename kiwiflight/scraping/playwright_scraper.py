@@ -13,13 +13,13 @@ from pathlib import Path
 from typing import List
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
-from playwright_stealth import Stealth
 from tqdm import tqdm
 
 from ..models import FlightInfo
+from .base_driver import BasePlaywrightDriver
 
 
-class _PlaywrightDriver:
+class _PlaywrightDriver(BasePlaywrightDriver):
     def __init__(self):
         self.failing_iatas_to_names = self.load_failing_iatas()
         self.url = 'https://www.kiwi.com/pl/?currency=PLN'
@@ -49,54 +49,12 @@ class _PlaywrightDriver:
             return json.load(f)
 
     def get_page(self, playwright):
-        args = [
-            "--disable-blink-features=AutomationControlled",
-            "--no-sandbox",
-            "--disable-infobars",
-            "--window-size=800,800",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--disable-gpu",
-        ]
-
-        browser = playwright.chromium.launch(
-            headless=True,
-            args=args,
-        )
-
-
-        context = browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            locale="pl-PL",
-            timezone_id="Europe/Warsaw",
-            geolocation={"latitude": 52.2297, "longitude": 21.0122},
-            permissions=["geolocation"],
-            viewport={"width": 800, "height": 800},  #
-            screen={"width": 800, "height": 800},
-            color_scheme="light",
-            has_touch=False,
-            java_script_enabled=True,
-        )
-
-        context.route("**/*.{png,jpg,jpeg,webp,svg,gif}", lambda route: route.abort())
-        context.add_cookies([
-            {
-                "name": "currency",
-                "value": "PLN",
-                "domain": ".kiwi.com",
-                "path": "/"
-            },
-            {
-                "name": "kw_currency",
-                "value": "PLN",
-                "domain": ".kiwi.com",
-                "path": "/"
-            }
+        """Extends base get_page with Kiwi-specific PLN currency cookies."""
+        browser, page = super().get_page(playwright)
+        page.context.add_cookies([
+            {"name": "currency",    "value": "PLN", "domain": ".kiwi.com", "path": "/"},
+            {"name": "kw_currency", "value": "PLN", "domain": ".kiwi.com", "path": "/"},
         ])
-
-        page = context.new_page()
-        Stealth().apply_stealth_sync(page)
-        page.set_default_timeout(self.timeout)
 
         return browser, page
 
@@ -186,7 +144,7 @@ class PlaywrightScraper(_PlaywrightDriver):
         page.locator(self.date_input_locator).click()
         clicks = 0
         while self.start_month not in self.get_month_name(page) and clicks < 12:
-            clicks += 1;
+            clicks += 1
             page.locator(self.next_button_locator).first.click()
         clicks = 0
         while self.end_month not in self.get_month_name(page) and clicks < 12:
