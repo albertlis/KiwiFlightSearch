@@ -17,16 +17,20 @@ from tqdm import tqdm
 
 from ..models import FlightInfo
 from .base_driver import BasePlaywrightDriver
+from kiwiflight.config import settings
+
+# Project data directory (root/data)
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 
 class _PlaywrightDriver(BasePlaywrightDriver):
     def __init__(self):
-        self.failing_iatas_to_names = self.load_failing_iatas()
+        self.failing_iatas_to_names = self.load_iata_requires_full_name()
         self.url = 'https://www.kiwi.com/pl/?currency=PLN'
         self.timeout = 30 * 1000
 
         self.month_button_locator = "button[data-test='DatepickerMonthButton']"
-        self.cookies_button_locator = "button[data-test='CookiesPopup-Accept']"
+        self.cookies_button_locator = "button[data-test='ModalCloseButton']"
         self.discard_cookies_locator = "button[data-test='CookiesPopup-Settings-save']"
         self.booking_label_locator = ".orbit-checkbox-icon-container"
         self.direction_button_locator = "//div[contains(@class, 'orbit-button-primitive-content') and contains(text(), 'W obie strony')]"
@@ -44,8 +48,20 @@ class _PlaywrightDriver(BasePlaywrightDriver):
         self.place_picker_rows_debug_locator = "div[data-test^='PlacePickerRow-']"
 
     @staticmethod
-    def load_failing_iatas() -> dict[str, str]:
-        with open('failing_iatas.json', 'rt', encoding='utf-8') as f:
+    def load_iata_requires_full_name() -> dict[str, str]:
+        """Load mapping of IATA codes to airport names from iata_requires_full_name.json.
+
+        Some airports are not recognized correctly by Kiwi's search when only the
+        IATA code is entered. For those airports the full airport name must be
+        used in the search; this method returns a mapping of IATA code ->
+        airport display name for such cases.
+
+        Returns:
+            dict[str, str]: Mapping from IATA code to airport name for airports
+            that require using the full name instead of the IATA code.
+        """
+        path = DATA_DIR / 'iata_requires_full_name.json'
+        with open(path, 'rt', encoding='utf-8') as f:
             return json.load(f)
 
     def get_page(self, playwright):
@@ -59,30 +75,47 @@ class _PlaywrightDriver(BasePlaywrightDriver):
         return browser, page
 
     def setup_main_page(self, page: Page) -> None:
-        page.locator(self.cookies_button_locator).click()
+        btn = page.locator(self.cookies_button_locator)
+        self._highlight(btn)
+        btn.click()
         try:
-            page.locator(self.discard_cookies_locator).click(timeout=5000)
+            discard = page.locator(self.discard_cookies_locator)
+            discard.wait_for(state="visible", timeout=5000)
+            self._highlight(discard)
+            discard.click()
         except PlaywrightTimeoutError:  # type: ignore[name-defined]
             logging.info("No secondary cookie banner.")
-        page.locator(self.direction_button_locator).first.click()
-        page.locator(self.one_way_ticket_locator).click()
-        page.locator(self.booking_label_locator).first.click()
+        direction_btn = page.locator(self.direction_button_locator).first
+        self._highlight(direction_btn)
+        direction_btn.click()
+        one_way = page.locator(self.one_way_ticket_locator)
+        self._highlight(one_way)
+        one_way.click()
+        booking = page.locator(self.booking_label_locator).first
+        self._highlight(booking)
+        booking.click()
 
     def choose_start_airport(self, page: Page, airport_iata: str) -> None:
-        page.locator(self.remove_start_airport_locator).click()
+        remove = page.locator(self.remove_start_airport_locator)
+        self._highlight(remove)
+        remove.click()
         start_input = page.locator(self.start_locator)
+        self._highlight(start_input)
         start_input.click()
         start_input.fill(self.failing_iatas_to_names.get(airport_iata, airport_iata))
         airport_option = page.locator(self.start_airport_locator, has_text=airport_iata).first
         airport_option.wait_for(state="visible", timeout=5000)
+        self._highlight(airport_option)
         airport_option.click()
 
     def choose_destination_airport(self, page: Page, airport_iata: str) -> str:
         destination_input = page.locator(self.destination_locator)
+        self._highlight(destination_input)
         destination_input.click()
         destination_input.fill(self.failing_iatas_to_names.get(airport_iata, airport_iata))
         destination_airport = page.locator(self.destination_airport_locator, has_text=airport_iata).first
         destination_airport.wait_for(state="visible", timeout=5000)
+        self._highlight(destination_airport)
         name = destination_airport.inner_text()
         destination_airport.click()
         return name
@@ -90,13 +123,28 @@ class _PlaywrightDriver(BasePlaywrightDriver):
     def get_month_name(self, page: Page) -> str:
         return page.locator(self.month_button_locator).last.inner_text().strip().lower()
 
+    @staticmethod
+    def _highlight(locator, duration_ms: int = 600) -> None:
+        """Briefly highlight an element with a red outline for visual debugging."""
+        try:
+            locator.evaluate(
+                f"""el => {{
+                    const prev = el.style.outline;
+                    el.style.outline = '3px solid red';
+                    setTimeout(() => {{ el.style.outline = prev; }}, {duration_ms});
+                }}"""
+            )
+        except Exception:
+            pass
+
 
 class PlaywrightScraper(_PlaywrightDriver):
-    def __init__(self, start_month: str, end_month: str, start_iata_airports: list[str]):
+    def __init__(self, start_month: str, end_month: str, start_iata_airports: list[str], all_iatas: bool = False):
         super().__init__()
         self.start_month = start_month
         self.end_month = end_month
         self.start_iata_airports = start_iata_airports
+        self.all_iatas = all_iatas
         self.interesting_iatas = self._load_interesting_iatas()
         self.iata_to_name = self._load_iata_to_city_name()
         self.price_span_locator = "div[data-test='NewDatepickerPrice'] span"
@@ -104,17 +152,25 @@ class PlaywrightScraper(_PlaywrightDriver):
 
     @staticmethod
     def _load_interesting_iatas() -> set[str]:
-        with open('interesting_iatas.txt', 'rt') as f:
+        path = DATA_DIR / 'interesting_iatas.txt'
+        with open(path, 'rt', encoding='utf-8') as f:
             return set(filter(None, f.read().split('\n')))
 
     @staticmethod
     def _load_iata_to_city_name() -> dict[str, str]:
-        with open('iata_to_city.json', 'rt', encoding='utf-8') as f:
-            return json.load(f)
+        path = DATA_DIR / 'airports_to_iata_mapping.json'
+        with open(path, 'rt', encoding='utf-8') as f:
+            city_to_iata = json.load(f)
+        # Invert to IATA -> city. If duplicates exist, the last occurrence wins.
+        iata_to_city: dict[str, str] = {iata: city for city, iata in city_to_iata.items()}
+        return iata_to_city
 
     @staticmethod
     def _read_iata_codes(file_path: Path) -> list[str]:
-        with open(file_path, 'rt') as f:
+        # If relative path passed (PosixPath with no anchor), resolve against project root
+        if not file_path.is_absolute():
+            file_path = Path(__file__).resolve().parents[2] / file_path
+        with open(file_path, 'rt', encoding='utf-8') as f:
             return [iata.strip() for iata in f.read().split('\n') if iata.strip()]
 
     @staticmethod
@@ -147,7 +203,9 @@ class PlaywrightScraper(_PlaywrightDriver):
             clicks += 1
             page.locator(self.next_button_locator).first.click()
         clicks = 0
-        while self.end_month not in self.get_month_name(page) and clicks < 12:
+        while True:
+            current_month = self.get_month_name(page)
+            is_end_month = self.end_month in current_month
             self._wait_for_prices(page)
             page.wait_for_selector(self.calendar_day_locator, state='attached', timeout=10000)
             days = page.locator(self.calendar_day_locator).all()
@@ -182,6 +240,8 @@ class PlaywrightScraper(_PlaywrightDriver):
                 flights.append(
                     FlightInfo(start_code, start_name, dst_code, dst_name, d_val, price, self._week_number(d_val), None,
                                None))
+            if is_end_month or clicks >= 12:
+                break
             clicks += 1
             page.locator(self.next_button_locator).click()
         page.keyboard.press('Escape')
@@ -192,7 +252,8 @@ class PlaywrightScraper(_PlaywrightDriver):
         start_airports_names = [self.iata_to_name[i] for i in self.start_iata_airports]
         for start_code, start_name in zip(self.start_iata_airports, start_airports_names):
             iatas_file = Path(f'airport_iata_codes/{start_code.upper()}_iata_codes.txt')
-            iata_codes = list(set(self._read_iata_codes(iatas_file)) & self.interesting_iatas)
+            all_codes = set(self._read_iata_codes(iatas_file))
+            iata_codes = list(all_codes if self.all_iatas else all_codes & self.interesting_iatas)
             for dst_code in tqdm(iata_codes, desc=f'{desc} {start_name}'):
                 if direction == 'poland_to_anywhere':
                     self.choose_start_airport(page, start_code)
@@ -212,11 +273,14 @@ class PlaywrightScraper(_PlaywrightDriver):
             page.goto(self.url)
             self.setup_main_page(page)
             poland_to_anywhere = self._collect_direction(page, 'poland_to_anywhere', 'From')
-            with open('poland_to_anywhere.pkl', 'wb') as f:
+            # save intermediate pickle next to configured data pickle
+            poland_pickle = settings.data_pickle.with_name('poland_to_anywhere.pkl')
+            with open(poland_pickle, 'wb') as f:
                 pickle.dump(poland_to_anywhere, f, pickle.HIGHEST_PROTOCOL)
             anywhere_to_poland = self._collect_direction(page, 'anywhere_to_poland', 'To')
             flights = dict(poland_to_anywhere=poland_to_anywhere, anywhere_to_poland=anywhere_to_poland)
-            with open('date_price_list.pkl', 'wb') as f:
+            # save final pickle to configured location
+            with open(settings.data_pickle, 'wb') as f:
                 pickle.dump(flights, f, pickle.HIGHEST_PROTOCOL)
             browser.close()
             return OrderedDict(sorted(flights.items()))

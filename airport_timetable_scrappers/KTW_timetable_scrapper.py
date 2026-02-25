@@ -19,6 +19,8 @@ class KTWTimetableScraper(BasePlaywrightDriver):
     """KTW timetable scraper — arrivals and departures."""
 
     url: str = TIMETABLE_URL
+    viewport_width: int = 1920
+    viewport_height: int = 1080
     _ARRIVALS_LABEL_TEXT = "Przylot"
     _DEPARTURES_LABEL_TEXT = "Odlot"
     _TIMETABLE_ROW_SELECTOR = "div.timetable__row.flight-board__row"
@@ -46,13 +48,11 @@ class KTWTimetableScraper(BasePlaywrightDriver):
         page.wait_for_selector(self._TIMETABLE_ROW_SELECTOR, state="visible", timeout=timeout)
 
     def _get_timetable_section_html(self, page: Page) -> str:
-        """Return the outerHTML of the <section> element that contains the timetable rows."""
-        # Find a section that is an ancestor of the first timetable row
-        section = page.locator(
-            f"section:has({self._TIMETABLE_ROW_SELECTOR})"
-        ).first
-        section.wait_for(state="attached", timeout=10_000)
-        return section.evaluate("el => el.outerHTML")
+        """Return the outerHTML of the direct container of the timetable rows."""
+        first_row = page.locator(self._TIMETABLE_ROW_SELECTOR).first
+        first_row.wait_for(state="attached", timeout=10_000)
+        return first_row.evaluate("el => el.parentElement.outerHTML")
+
 
     def _scrape_and_save(self, page: Page, label_text: str, output_path: Path) -> None:
         self._click_flight_type(page, label_text)

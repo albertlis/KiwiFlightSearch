@@ -3,10 +3,12 @@ import logging
 from pathlib import Path
 from typing import Set, List
 
+from kiwiflight.logging_config import setup_logging
+
 # --- Configuration ---
 SOURCE_IATA_CODES: List[str] = ['POZ', 'KTW', 'WRO']
-TIMETABLES_DIR: Path = Path('timetables')
-OUTPUT_DIR: Path = Path('airport_iata_codes')
+TIMETABLES_DIR: Path = Path('../timetables')
+OUTPUT_DIR: Path = Path('../airport_iata_codes')
 
 # --- Setup Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,6 +59,7 @@ def main():
     """
     Main function to process timetables for a list of source IATA codes.
     """
+    setup_logging()
     for iata in SOURCE_IATA_CODES:
         logging.info("Processing IATA code: %s", iata)
         timetable_file = TIMETABLES_DIR / f"{iata}_timetable.json"

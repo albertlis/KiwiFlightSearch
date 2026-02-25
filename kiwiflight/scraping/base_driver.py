@@ -21,6 +21,8 @@ class BasePlaywrightDriver:
 
     url: str = "about:blank"
     timeout: int = 30 * 1000
+    viewport_width: int = 800
+    viewport_height: int = 800
 
     def _get_browser_args(self) -> list[str]:
         return [
@@ -38,7 +40,7 @@ class BasePlaywrightDriver:
     def get_page(self, playwright):
         """Create and return a (browser, page) tuple with stealth applied."""
         browser = playwright.chromium.launch(
-            headless=False,
+            headless=True,
             args=self._get_browser_args(),
         )
 
@@ -52,8 +54,8 @@ class BasePlaywrightDriver:
             timezone_id="Europe/Warsaw",
             geolocation={"latitude": 52.2297, "longitude": 21.0122},
             permissions=["geolocation"],
-            viewport={"width": 800, "height": 800},
-            screen={"width": 800, "height": 800},
+            viewport={"width": self.viewport_width, "height": self.viewport_height},
+            screen={"width": self.viewport_width, "height": self.viewport_height},
             color_scheme="light",
             has_touch=False,
             java_script_enabled=True,

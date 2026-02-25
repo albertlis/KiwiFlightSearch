@@ -44,7 +44,7 @@ def main() -> None:
     # flights_processor = FlightProcessorWeekends(500, 10, 11, iata_list)
     flights_processor = FlightProcessorDuration(650, 7, 10, iata_list, start_date="01.02.2026", end_date="01.06.2026")
     print_info = flights_processor.process_flights_info(flights_data)
-    with open('flights.html', 'wt', encoding='utf-8') as f:
+    with open('data/flights.html', 'wt', encoding='utf-8') as f:
         f.write(print_info)
     send_mail(print_info)
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     logging.getLogger('selenium').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    # main()
+    main()
     schedule.every().day.at("15:30").do(main)
     while True:
         try:

@@ -1,87 +1,427 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <title>Weekend Flight Deals</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.6; }
-    h1 { color: #333; }
-    details { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 1em; background-color: #f9f9f9; }
-    summary { font-weight: bold; padding: 1em; cursor: pointer; list-style: none; }
-    summary::-webkit-details-marker { display: none; }
-    .destination-content { padding: 0 1em 1em; }
-    .week-header { font-weight: bold; margin-top: 1em; color: #555; }
-    /* Table style for readable trips */
-    .trips-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1em;
-    }
-    .trips-table th,
-    .trips-table td {
-      padding: 0.75em;
-      border: 1px solid #ddd;
-      vertical-align: top;
-    }
-    .trips-table th {
-      background-color: #007bff;
-      color: #fff;
-      text-align: left;
-    }
-    .trips-table tbody tr:nth-child(odd) {
-      background-color: #f9f9f9;
-    }
-    .trips-table tbody tr:hover {
-      background-color: #e9e9e9;
-    }
-    time {
-      font-style: normal;
-      color: #555;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✈ Weekendowe Okazje Lotnicze</title>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --surface-2: #f8fafc;
+            --border: #e2e8f0;
+            --text: #1a202c;
+            --text-muted: #718096;
+            --accent: #e05d8a;
+            --accent-2: #f7b731;
+            --accent-gradient: linear-gradient(135deg, #e05d8a, #f7b731);
+            --green: #38a169;
+            --shadow: 0 4px 24px rgba(0,0,0,0.08);
+            --shadow-hover: 0 8px 32px rgba(224,93,138,0.18);
+            --radius: 14px;
+            --transition: 0.22s ease;
+        }
+        [data-theme="dark"] {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-2: #1e2130;
+            --border: #2d3348;
+            --text: #e2e8f0;
+            --text-muted: #8892a4;
+            --accent: #f480a4;
+            --accent-2: #fcd463;
+            --accent-gradient: linear-gradient(135deg, #f480a4, #fcd463);
+            --green: #68d391;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+            --shadow-hover: 0 8px 32px rgba(244,128,164,0.22);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        /* ── HEADER ── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .header-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            white-space: nowrap;
+        }
+        .header-stats {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 0.2rem 0.75rem;
+            white-space: nowrap;
+        }
+        .search-wrap {
+            flex: 1 1 200px;
+            max-width: 340px;
+            position: relative;
+        }
+        .search-wrap::before {
+            content: '🔍';
+            position: absolute;
+            left: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        #search {
+            width: 100%;
+            padding: 0.45rem 0.9rem 0.45rem 2.1rem;
+            border: 1.5px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface-2);
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        #search:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(224,93,138,0.15);
+        }
+        .theme-toggle {
+            background: var(--surface-2);
+            border: 1.5px solid var(--border);
+            border-radius: 999px;
+            padding: 0.35rem 0.8rem;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text);
+            transition: background var(--transition), border-color var(--transition);
+            white-space: nowrap;
+        }
+        .theme-toggle:hover { border-color: var(--accent); }
+
+        /* ── MAIN ── */
+        .main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+        #no-results {
+            display: none;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 3rem;
+            font-size: 1.1rem;
+        }
+
+        /* ── DESTINATION CARD ── */
+        .destination-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: box-shadow var(--transition), transform var(--transition);
+        }
+        .destination-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+        .destination-card > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+            user-select: none;
+            transition: background var(--transition);
+        }
+        .destination-card > summary::-webkit-details-marker { display: none; }
+        .destination-card > summary:hover { background: var(--surface-2); }
+        .destination-card[open] > summary { border-bottom: 1px solid var(--border); }
+
+        .dest-chevron {
+            width: 28px; height: 28px;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            transition: transform var(--transition);
+        }
+        details[open] .dest-chevron { transform: rotate(90deg); }
+        .dest-flag { font-size: 1.5rem; flex-shrink: 0; }
+        .dest-info { flex: 1; min-width: 0; }
+        .dest-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .dest-iata {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+        .dest-price-badge {
+            background: var(--accent-gradient);
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            padding: 0.3rem 0.9rem;
+            border-radius: 999px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .dest-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.15rem 0.6rem;
+            white-space: nowrap;
+        }
+
+        /* ── DESTINATION CONTENT ── */
+        .destination-content { padding: 1rem 1.25rem 1.25rem; }
+
+        /* ── WEEK SECTION ── */
+        .week-section { margin-bottom: 1.25rem; }
+        .week-section:last-child { margin-bottom: 0; }
+        .week-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+            margin-bottom: 0.6rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1.5px solid var(--border);
+        }
+        .week-dot {
+            width: 8px; height: 8px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .trips-list { display: flex; flex-direction: column; gap: 0.65rem; }
+
+        /* ── TRIP CARD ── */
+        .trip-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            display: grid;
+            grid-template-columns: auto 1fr 1fr auto;
+            gap: 0.5rem 1rem;
+            align-items: center;
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .trip-card:hover { border-color: var(--accent); background: var(--surface); }
+
+        .trip-price { text-align: center; flex-shrink: 0; }
+        .trip-price-amount {
+            font-size: 1.25rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+        .trip-price-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .trip-leg { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+        .trip-leg-header {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+        .trip-leg-header.outbound { color: var(--accent); }
+        .trip-leg-header.inbound  { color: var(--accent-2); }
+        .trip-leg-date  { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+        .trip-leg-airport {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .trip-leg-time { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+
+        .trip-meta {
+            display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+            text-align: center; flex-shrink: 0;
+        }
+        .trip-meta-icon { font-size: 1.3rem; }
+        .trip-meta-duration { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+        .trip-meta-duration strong { color: var(--green); font-weight: 700; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 640px) {
+            .trip-card {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto auto;
+            }
+            .trip-price { grid-column: 1; grid-row: 1; text-align: left; }
+            .trip-meta  { grid-column: 2; grid-row: 1; align-items: flex-end; }
+            .trip-leg:first-of-type  { grid-column: 1; grid-row: 2; }
+            .trip-leg:last-of-type   { grid-column: 2; grid-row: 2; }
+            .site-header { padding: 0.65rem 1rem; }
+            .header-title { font-size: 1.1rem; }
+        }
+
+        /* ── FOOTER ── */
+        .site-footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
 </head>
 <body>
-  <h1>Weekend Flight Deals</h1>
-  {% for dest in destinations %}
-    <details>
-      <summary>
-        Destination: {{ dest.destination_name }} ({{ dest.iata }}) -
-        Lowest Price: {{ dest.lowest_price }}zł
-      </summary>
-      <div class="destination-content">
-        {% for wk in dest.weeks %}
-          <p class="week-header">Week {{ wk.week }}:</p>
-          <table class="trips-table">
-            <thead>
-              <tr>
-                <th>Price</th>
-                <th>Duration</th>
-                <th>Outbound</th>
-                <th>Return</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for trip in wk.trips %}
-              <tr>
-                <td><strong>{{ trip.total_price }}zł</strong></td>
-                <td>{{ trip.duration }} days</td>
-                <td>
-                  {{ trip.start_date }}<br>
-                  {{ trip.start_name }} ({{ trip.start_code }})<br>
-                  <time>{{ trip.start_time }}</time>
-                </td>
-                <td>
-                  {{ trip.back_date }}<br>
-                  {{ trip.back_name }} ({{ trip.back_code }})<br>
-                  <time>{{ trip.back_time }}</time>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% endfor %}
-      </div>
+
+<header class="site-header">
+    <span class="header-title">🌴 Weekendowe Okazje</span>
+    <span class="header-stats" id="stats-badge">{{ destinations | length }} destynacji</span>
+    <div class="search-wrap">
+        <input id="search" type="search" placeholder="Szukaj destynacji…" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="theme-toggle" id="theme-toggle" title="Przełącz motyw">🌙 Ciemny</button>
+</header>
+
+<main class="main">
+    <div id="no-results">😔 Brak destynacji pasujących do wyszukiwania.</div>
+
+    {% for dest in destinations %}
+    <details class="destination-card" data-name="{{ dest.destination_name | lower }}" data-iata="{{ dest.iata | lower }}">
+        <summary>
+            <span class="dest-chevron">▶</span>
+            <span class="dest-flag">🌴</span>
+            <span class="dest-info">
+                <div class="dest-name">{{ dest.destination_name }}</div>
+                <div class="dest-iata">{{ dest.iata }}</div>
+            </span>
+            <span class="dest-count">{{ dest.weeks | length }} tyg.</span>
+            <span class="dest-price-badge">od {{ dest.lowest_price }} zł</span>
+        </summary>
+
+        <div class="destination-content">
+            {% for wk in dest.weeks %}
+            <div class="week-section">
+                <div class="week-header">
+                    <span class="week-dot"></span>
+                    📅 Tydzień {{ wk.week }}
+                    <span style="font-weight:400; color: var(--text-muted); margin-left: auto;">{{ wk.trips | length }} opcji</span>
+                </div>
+                <div class="trips-list">
+                    {% for trip in wk.trips %}
+                    <div class="trip-card">
+                        <div class="trip-price">
+                            <div class="trip-price-amount">{{ trip.total_price }} zł</div>
+                            <div class="trip-price-label">💰 łącznie</div>
+                        </div>
+
+                        <div class="trip-leg">
+                            <div class="trip-leg-header outbound">✈ Wylot</div>
+                            <div class="trip-leg-date">📅 {{ trip.start_date }}</div>
+                            <div class="trip-leg-airport">{{ trip.start_name }} ({{ trip.start_code }})</div>
+                            <div class="trip-leg-time">🕐 {{ trip.start_time }}</div>
+                        </div>
+
+                        <div class="trip-leg">
+                            <div class="trip-leg-header inbound">↩ Powrót</div>
+                            <div class="trip-leg-date">📅 {{ trip.back_date }}</div>
+                            <div class="trip-leg-airport">{{ trip.back_name }} ({{ trip.back_code }})</div>
+                            <div class="trip-leg-time">🕐 {{ trip.back_time }}</div>
+                        </div>
+
+                        <div class="trip-meta">
+                            <span class="trip-meta-icon">🏖️</span>
+                            <div class="trip-meta-duration"><strong>{{ trip.duration }}</strong> dni</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </details>
-  {% endfor %}
+    {% endfor %}
+</main>
+
+<footer class="site-footer">
+    Kiwi Flight Search &nbsp;·&nbsp; dane z kiwi.com
+</footer>
+
+<script>
+(function () {
+    // ── THEME ──
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    const saved = localStorage.getItem('kiwi-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initTheme = saved || (prefersDark ? 'dark' : 'light');
+    root.setAttribute('data-theme', initTheme);
+    btn.textContent = initTheme === 'dark' ? '☀️ Jasny' : '🌙 Ciemny';
+
+    btn.addEventListener('click', () => {
+        const cur = root.getAttribute('data-theme');
+        const next = cur === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        localStorage.setItem('kiwi-theme', next);
+        btn.textContent = next === 'dark' ? '☀️ Jasny' : '🌙 Ciemny';
+    });
+
+    // ── SEARCH ──
+    const input = document.getElementById('search');
+    const noResults = document.getElementById('no-results');
+    const cards = Array.from(document.querySelectorAll('.destination-card'));
+
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        let visible = 0;
+        cards.forEach(card => {
+            const match = !q || card.dataset.name.includes(q) || card.dataset.iata.includes(q);
+            card.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        noResults.style.display = visible === 0 ? 'block' : 'none';
+        document.getElementById('stats-badge').textContent =
+            q ? `${visible} / ${cards.length} destynacji` : `${cards.length} destynacji`;
+    });
+})();
+</script>
 </body>
 </html>

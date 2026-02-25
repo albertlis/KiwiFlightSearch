@@ -18,7 +18,7 @@ class BaseFlightProcessor(ABC):
     def __init__(self, price_limit: int, iata_list: list[str]):
         self.price_limit = price_limit
         self.timetables: dict[str, dict[str, dict[str, list[FlightTimetable]]]] = {}
-        timetables_path = Path('timetables')  # keep relative to project root
+        timetables_path = Path(__file__).resolve().parents[2] / 'timetables'
         for iata in iata_list:
             timetable_file = timetables_path / f'{iata.upper()}_timetable.json'
             with open(timetable_file, 'rt', encoding='utf-8') as f:
@@ -35,7 +35,7 @@ class BaseFlightProcessor(ABC):
                 return datetime.strptime(date_str, date_format).date()
             except ValueError:
                 continue
-        raise ValueError(f"Date string '{date_str}' not in formats {formats}")
+        raise ValueError(f"Date string '{date_str}' not in formats {formats!r}")
 
     @staticmethod
     def _parse_time(time_str: str) -> time:
@@ -120,7 +120,7 @@ class BaseFlightProcessor(ABC):
         for flight_info in timetable:
             if flight_info.start_date <= flight.date <= flight_info.end_date and flight.date.weekday() in flight_info.weekdays:
                 return flight_info.start_time
-        logging.error('No timetable flight match for %s (%s)', flight, flight.date.strftime('%A'))
+        logging.warning(f'No timetable flight match. Probably indirect flight for {flight} ({flight.date.strftime("%A")})')
         return None
 
     @abstractmethod
