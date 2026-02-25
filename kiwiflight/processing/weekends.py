@@ -115,7 +115,8 @@ class FlightProcessorWeekends(BaseFlightProcessor):
         templates_dir = Path(__file__).resolve().parents[2] / 'templates'
         env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=select_autoescape(['html', 'xml']))
         tpl = env.get_template('weekend_deals.html.j2')
-        rendered = tpl.render(destinations=formatted)
+        generated_at = datetime.now().strftime("%d.%m.%Y %H:%M")
+        rendered = tpl.render(destinations=formatted, generated_at=generated_at)
         soup = BeautifulSoup(rendered, 'lxml')
         return soup.prettify()
 
