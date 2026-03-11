@@ -21,6 +21,7 @@ import schedule
 from kiwiflight.config import settings
 from kiwiflight.emailer import send_email, send_email_link
 from kiwiflight.logging_config import setup_logging
+from kiwiflight.models import AirportLookupError, ScrapeError
 from kiwiflight.processing.duration import FlightProcessorDuration
 from kiwiflight.processing.weekends import FlightProcessorWeekends
 from kiwiflight.scraping.playwright_scraper import PlaywrightScraper
@@ -38,7 +39,22 @@ def _load_or_scrape(scrape: bool, start_month: str, end_month: str, iatas: Seque
         raise FileNotFoundError(f"Pickle file {settings.data_pickle} not found. Run with --scrape first.")
     with open(settings.data_pickle, "rb") as f:
         logging.info(f"Loading existing flights pickle {settings.data_pickle}")
-        return pickle.load(f)
+        flights_data = pickle.load(f)
+    # Load scrape errors if available
+    errors_pickle = settings.data_pickle.with_name('scrape_errors.pkl')
+    scrape_errors: list[ScrapeError] = []
+    if errors_pickle.exists():
+        with open(errors_pickle, "rb") as f:
+            scrape_errors = pickle.load(f)
+        logging.info(f"Loaded {len(scrape_errors)} scrape error(s) from {errors_pickle}")
+    # Load lookup errors if available
+    lookup_errors_pickle = settings.data_pickle.with_name('lookup_errors.pkl')
+    lookup_errors: list[AirportLookupError] = []
+    if lookup_errors_pickle.exists():
+        with open(lookup_errors_pickle, "rb") as f:
+            lookup_errors = pickle.load(f)
+        logging.info(f"Loaded {len(lookup_errors)} airport lookup error(s) from {lookup_errors_pickle}")
+    return flights_data, scrape_errors, lookup_errors
 
 
 def run_pipeline(
@@ -59,7 +75,7 @@ def run_pipeline(
         nginx: bool = False,
         email_link: bool = False,
 ) -> Path:
-    flights_data = _load_or_scrape(scrape, start_month, end_month, iatas, all_iatas=all_iatas)
+    flights_data, scrape_errors, lookup_errors = _load_or_scrape(scrape, start_month, end_month, iatas, all_iatas=all_iatas)
 
     if mode == "duration":
         processor = FlightProcessorDuration(
@@ -79,7 +95,7 @@ def run_pipeline(
         )
 
     logging.info(f"Processing flights using '{mode}' mode")
-    html = processor.process_flights_info(flights_data)
+    html = processor.process_flights_info(flights_data, scrape_errors=scrape_errors, lookup_errors=lookup_errors)
     settings.output_html.write_text(html, encoding="utf-8")
     logging.info(f"Output written to {settings.output_html}")
 

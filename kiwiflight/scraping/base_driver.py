@@ -20,7 +20,7 @@ class BasePlaywrightDriver:
     """Headless Chromium driver with anti-bot stealth applied."""
 
     url: str = "about:blank"
-    timeout: int = 30 * 1000
+    timeout: int = 60 * 1000
     viewport_width: int = 800
     viewport_height: int = 800
 

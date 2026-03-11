@@ -78,13 +78,13 @@ KiwiFlightSearch/
 │   ├── date_price_list.pkl            #   Cached scraping results
 │   ├── flights.html                   #   Generated HTML report
 │   ├── interesting_iatas.txt          #   Curated list of destination IATA codes
-│   ├── iata_requires_full_name.json   #   IATAs that need full airport name on Kiwi
 │   └── airports_to_iata_mapping.json  #   Airport → IATA reverse mapping
 │
 ├── templates/                         # 🎨 Jinja2 HTML report templates
 │   ├── duration_deals.html.j2
 │   └── weekend_deals.html.j2
 │
+├── validate_iatas.py                  # 🔎 Pre-flight IATA mapping validator
 ├── pyproject.toml                     # Project metadata & dependencies (uv)
 └── .env                               # Secrets (not committed)
 ```
@@ -153,6 +153,18 @@ uv sync
 ```bash
 uv run playwright install chromium
 ```
+
+### 4. Validate IATA mappings
+
+Before scraping, make sure every IATA code in `airport_iata_codes/` has a corresponding city→IATA entry in `data/airports_to_iata_mapping.json`. The mapping is used as a **fallback** when Kiwi.com doesn't recognise a bare IATA code — if a code is missing, the scraper will skip that route and report it as an `AirportLookupError` in the HTML report.
+
+Run the validator:
+
+```bash
+uv run python validate_iatas.py
+```
+
+If any codes are missing, the script prints them and exits with code 1. Add the missing `"City Name": "IATA"` entries to `data/airports_to_iata_mapping.json` and re-run until the check passes.
 
 ---
 

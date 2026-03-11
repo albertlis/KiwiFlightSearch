@@ -31,9 +31,9 @@ def extract_unique_iata_codes(timetable_path: Path) -> Set[str]:
         departures = set(timetable.get('departures', []))
         return arrivals | departures
     except FileNotFoundError:
-        logging.warning("Timetable file not found: %s", timetable_path)
+        logging.warning(f"Timetable file not found: {timetable_path}")
     except json.JSONDecodeError:
-        logging.error("Error decoding JSON from file: %s", timetable_path)
+        logging.error(f"Error decoding JSON from file: {timetable_path}")
     return set()
 
 
@@ -50,9 +50,9 @@ def save_iata_codes(iata_codes: Set[str], output_path: Path) -> None:
         with output_path.open('w', encoding='utf-8') as f:
             for code in sorted(iata_codes):
                 f.write(f"{code}\n")
-        logging.info("Successfully saved %d IATA codes to %s", len(iata_codes), output_path)
+        logging.info(f"Successfully saved {len(iata_codes)} IATA codes to {output_path}")
     except IOError as e:
-        logging.error("Could not write to file %s: %s", output_path, e)
+        logging.error(f"Could not write to file {output_path}: {e}")
 
 
 def main():
@@ -61,7 +61,7 @@ def main():
     """
     setup_logging()
     for iata in SOURCE_IATA_CODES:
-        logging.info("Processing IATA code: %s", iata)
+        logging.info(f"Processing IATA code: {iata}")
         timetable_file = TIMETABLES_DIR / f"{iata}_timetable.json"
         if unique_iata_codes := extract_unique_iata_codes(timetable_file):
             output_file = OUTPUT_DIR / f"{iata}_iata_codes.txt"

@@ -316,6 +316,82 @@
             padding: 1.5rem;
             border-top: 1px solid var(--border);
         }
+
+        /* ── SCRAPE ERRORS ── */
+        .errors-section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.25rem 2rem;
+        }
+        .errors-card {
+            background: var(--surface);
+            border: 1px solid #e53e3e;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .errors-card > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            user-select: none;
+            transition: background var(--transition);
+        }
+        .errors-card > summary::-webkit-details-marker { display: none; }
+        .errors-card > summary:hover { background: var(--surface-2); }
+        .errors-card[open] > summary { border-bottom: 1px solid var(--border); }
+        .errors-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #e53e3e, #fc8181);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .errors-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e53e3e;
+        }
+        [data-theme="dark"] .errors-title { color: #fc8181; }
+        .errors-count {
+            font-size: 0.75rem;
+            color: #fff;
+            background: #e53e3e;
+            border-radius: 999px;
+            padding: 0.15rem 0.6rem;
+            font-weight: 600;
+        }
+        .errors-list {
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .error-item {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-left: 3px solid #e53e3e;
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.85rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .error-route {
+            font-weight: 700;
+        }
+        .error-detail {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -378,6 +454,52 @@
     </details>
     {% endfor %}
 </main>
+
+{% if scrape_errors %}
+<section class="errors-section">
+    <details class="errors-card">
+        <summary>
+            <span class="errors-icon">⚠</span>
+            <span class="errors-title">Błędy scrapingu</span>
+            <span class="errors-count">{{ scrape_errors | length }}</span>
+        </summary>
+        <div class="errors-list">
+            {% for err in scrape_errors %}
+            <div class="error-item">
+                <span>⚠️</span>
+                <span class="error-route">{{ err.start_iata }} → {{ err.dst_iata }}</span>
+                <span class="error-detail">{{ err.start_name }} → {{ err.dst_name }}</span>
+                <span class="error-detail">Kierunek: {{ err.direction }}</span>
+                <span class="error-detail">Timeout w miesiącu: {{ err.failed_month }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+</section>
+{% endif %}
+
+{% if lookup_errors %}
+<section class="errors-section">
+    <details class="errors-card">
+        <summary>
+            <span class="errors-icon">🔍</span>
+            <span class="errors-title">Nieznalezione lotniska</span>
+            <span class="errors-count">{{ lookup_errors | length }}</span>
+        </summary>
+        <div class="errors-list">
+            {% for err in lookup_errors %}
+            <div class="error-item">
+                <span>🔍</span>
+                <span class="error-route">{{ err.iata }}</span>
+                <span class="error-detail">Nazwa: {{ err.city_name }}</span>
+                <span class="error-detail">Rola: {{ err.role }}</span>
+                <span class="error-detail">Kierunek: {{ err.direction }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+</section>
+{% endif %}
 
 <footer class="site-footer">
     Kiwi Flight Search &nbsp;·&nbsp; dane z kiwi.com

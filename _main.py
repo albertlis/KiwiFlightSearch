@@ -36,14 +36,14 @@ def send_mail(print_info: str) -> None:
 def main() -> None:
     iata_list = ['KTW']
     scraper = PlaywrightScraper('marzec', 'czerwiec', iata_list)
-    flights_data = scraper.webscrap_flights()
+    flights_data, scrape_errors, lookup_errors = scraper.webscrap_flights()
 
     # with open('date_price_list.pkl', 'rb') as f:
     #     flights_data = pickle.load(f)
     # print(flights_data)
     # flights_processor = FlightProcessorWeekends(500, 10, 11, iata_list)
     flights_processor = FlightProcessorDuration(650, 7, 10, iata_list, start_date="01.02.2026", end_date="01.06.2026")
-    print_info = flights_processor.process_flights_info(flights_data)
+    print_info = flights_processor.process_flights_info(flights_data, scrape_errors=scrape_errors, lookup_errors=lookup_errors)
     with open('data/flights.html', 'wt', encoding='utf-8') as f:
         f.write(print_info)
     send_mail(print_info)

@@ -8,7 +8,7 @@ from typing import TypeAlias
 
 import dacite
 
-from ..models import FlightInfo, FlightTimetable
+from ..models import AirportLookupError, FlightInfo, FlightTimetable, ScrapeError
 
 TripsDict: TypeAlias = dict[str, list[dict[str, FlightInfo | int]]]
 
@@ -116,13 +116,17 @@ class BaseFlightProcessor(ABC):
     def get_flight_time(self, flight: FlightInfo, flight_type: str = 'departures') -> time | None:
         start_iata = flight.start if flight_type == 'departures' else flight.end
         end_iata = flight.end if flight_type == 'departures' else flight.start
-        timetable = self.timetables[start_iata][flight_type][end_iata]
+        try:
+            timetable = self.timetables[start_iata][flight_type][end_iata]
+        except KeyError:
+            logging.error(f"No IATA found {start_iata=}, {flight_type=}, {end_iata=}")
+            return None
         for flight_info in timetable:
             if flight_info.start_date <= flight.date <= flight_info.end_date and flight.date.weekday() in flight_info.weekdays:
                 return flight_info.start_time
-        logging.warning(f'No timetable flight match. Probably indirect flight for {flight} ({flight.date.strftime("%A")})')
+        logging.debug(f'No timetable flight match. Probably indirect flight for {flight} ({flight.date.strftime("%A")})')
         return None
 
     @abstractmethod
-    def process_flights_info(self, data: dict[str, list[FlightInfo]]) -> str:  # pragma: no cover
+    def process_flights_info(self, data: dict[str, list[FlightInfo]], scrape_errors: list[ScrapeError] | None = None, lookup_errors: list[AirportLookupError] | None = None) -> str:  # pragma: no cover
         raise NotImplementedError

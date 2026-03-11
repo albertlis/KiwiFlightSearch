@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from tqdm import tqdm
 
 from .base import BaseFlightProcessor, TripsDict
-from ..models import FlightInfo
+from ..models import AirportLookupError, FlightInfo, ScrapeError
 
 Trip = dict[str, FlightInfo | int]
 
@@ -75,7 +75,12 @@ class FlightProcessorDuration(BaseFlightProcessor):
                 b.back_time = self.get_flight_time(b, 'arrivals')
         return available_trips
 
-    def _format_trips_to_html(self, trips: TripsDict) -> str:
+    def _format_trips_to_html(
+            self,
+            trips: TripsDict,
+            scrape_errors: list[ScrapeError] | None = None,
+            lookup_errors: list[AirportLookupError] | None = None
+    ) -> str:
         sorted_destinations = sorted(
             trips.items(),
             key=lambda item: item[1][0]['start_flight'].end_name if item[1] else ""
@@ -113,12 +118,40 @@ class FlightProcessorDuration(BaseFlightProcessor):
         env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=select_autoescape(['html', 'xml']))
         tpl = env.get_template('duration_deals.html.j2')
         generated_at = datetime.now().strftime("%d.%m.%Y %H:%M")
-        rendered = tpl.render(destinations=formatted, generated_at=generated_at)
+        formatted_errors = []
+        for err in (scrape_errors or []):
+            formatted_errors.append({
+                'start_iata': err.start_iata,
+                'start_name': err.start_name,
+                'dst_iata': err.dst_iata,
+                'dst_name': err.dst_name,
+                'direction': err.direction,
+                'failed_month': err.failed_month,
+            })
+        formatted_lookup_errors = []
+        for err in (lookup_errors or []):
+            formatted_lookup_errors.append({
+                'iata': err.iata,
+                'city_name': err.city_name or '—',
+                'role': err.role,
+                'direction': err.direction,
+            })
+        rendered = tpl.render(
+            destinations=formatted,
+            generated_at=generated_at,
+            scrape_errors=formatted_errors,
+            lookup_errors=formatted_lookup_errors,
+        )
         soup = BeautifulSoup(rendered, 'lxml')
         return soup.prettify()
 
     # ---------------- public API -----------------
-    def process_flights_info(self, data: dict[str, list[FlightInfo]]) -> str:
+    def process_flights_info(
+            self,
+            data: dict[str, list[FlightInfo]],
+            scrape_errors: list[ScrapeError] | None = None,
+            lookup_errors: list[AirportLookupError] | None = None
+    ) -> str:
         poland_to_anywhere = data['poland_to_anywhere']
         anywhere_to_poland = data['anywhere_to_poland']
         self.convert_prices(poland_to_anywhere)
@@ -131,5 +164,5 @@ class FlightProcessorDuration(BaseFlightProcessor):
         available_trips = self.filter_by_total_price_flights(available_trips)
         available_trips = self.add_flight_times(available_trips)
         available_trips = self.filter_non_direct_flights(available_trips)
-        return self._format_trips_to_html(available_trips)
+        return self._format_trips_to_html(available_trips, scrape_errors=scrape_errors, lookup_errors=lookup_errors)
 
