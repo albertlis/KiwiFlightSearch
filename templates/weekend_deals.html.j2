@@ -184,13 +184,14 @@
         }
         .dest-price-badge {
             background: var(--accent-gradient);
-            color: #fff;
+            color: #1a202c;
             font-size: 0.95rem;
-            font-weight: 700;
+            font-weight: 800;
             padding: 0.3rem 0.9rem;
             border-radius: 999px;
             white-space: nowrap;
             flex-shrink: 0;
+            text-shadow: none;
         }
         .dest-count {
             font-size: 0.75rem;
@@ -239,6 +240,7 @@
             grid-template-columns: auto 1fr 1fr auto;
             gap: 0.5rem 1rem;
             align-items: center;
+            position: relative;
             transition: background var(--transition), border-color var(--transition);
         }
         .trip-card:hover { border-color: var(--accent); background: var(--surface); }
@@ -287,17 +289,147 @@
         .trip-meta-duration strong { color: var(--green); font-weight: 700; }
 
         /* ── RESPONSIVE ── */
-        @media (max-width: 640px) {
+
+        /* Tablet */
+        @media (max-width: 768px) {
+            .main { padding: 1rem 0.75rem 3rem; }
+            .destination-content { padding: 0.75rem; }
+
             .trip-card {
                 grid-template-columns: 1fr 1fr;
                 grid-template-rows: auto auto;
+                gap: 0.75rem;
+                padding: 0.85rem 0.9rem;
             }
             .trip-price { grid-column: 1; grid-row: 1; text-align: left; }
             .trip-meta  { grid-column: 2; grid-row: 1; align-items: flex-end; }
-            .trip-leg:first-of-type  { grid-column: 1; grid-row: 2; }
-            .trip-leg:last-of-type   { grid-column: 2; grid-row: 2; }
-            .site-header { padding: 0.65rem 1rem; }
-            .header-title { font-size: 1.1rem; }
+            .trip-leg:first-of-type { grid-column: 1; grid-row: 2; }
+            .trip-leg:last-of-type  { grid-column: 2; grid-row: 2; }
+        }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            /* Header: dwie wiersze — tytuł+toggle w pierwszej, search w drugiej */
+            .site-header {
+                padding: 0.6rem 0.9rem;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+            .header-title {
+                font-size: 1.05rem;
+                flex: 1 1 auto;
+            }
+            /* stats badges - chowamy aktualizację, zostaje tylko liczba destynacji */
+            .header-stats:last-of-type { display: none; }
+            .header-stats { font-size: 0.72rem; padding: 0.15rem 0.55rem; }
+            .search-wrap {
+                order: 10;
+                flex: 1 1 100%;
+                max-width: 100%;
+            }
+            .theme-toggle {
+                font-size: 0.85rem;
+                padding: 0.3rem 0.65rem;
+            }
+
+            /* Destination summary */
+            .destination-card > summary {
+                padding: 0.85rem 0.9rem;
+                gap: 0.6rem;
+                align-items: center;
+            }
+            .dest-flag { font-size: 1.3rem; flex-shrink: 0; }
+            .dest-info {
+                flex: 1 1 0;
+                min-width: 0;
+                overflow: hidden;
+            }
+            .dest-name {
+                font-size: 0.95rem;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+                word-break: break-word;
+            }
+            .dest-iata { font-size: 0.7rem; }
+            .dest-price-badge {
+                font-size: 0.85rem;
+                padding: 0.25rem 0.7rem;
+                flex-shrink: 0;
+            }
+            .dest-count { display: none; }
+
+            /* Week header */
+            .week-header { font-size: 0.72rem; }
+
+            /* Trip card: jedna pozioma linia — [emoji | lotnisko | cena] */
+            .trip-card {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                grid-template-rows: auto;
+                gap: 0 0.6rem;
+                padding: 0.65rem 0.85rem;
+                align-items: center;
+                position: static;
+            }
+
+            /* Kolumna 1: ikona (z trip-meta) */
+            .trip-meta {
+                grid-column: 1; grid-row: 1;
+                position: static;
+                transform: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0.1rem;
+            }
+            .trip-meta-icon { font-size: 1.4rem; line-height: 1; }
+            .trip-meta-duration { font-size: 0.65rem; text-align: center; }
+
+            /* Kolumna 2: lotnisko docelowe (z pierwszej nogi) */
+            .trip-leg:first-of-type {
+                grid-column: 2; grid-row: 1;
+                min-width: 0;
+            }
+            .trip-leg:first-of-type .trip-leg-airport {
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: var(--text);
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+                word-break: break-word;
+            }
+            .trip-leg:first-of-type .trip-leg-date,
+            .trip-leg:first-of-type .trip-leg-time,
+            .trip-leg:first-of-type .trip-leg-header { display: none; }
+
+            /* Kolumna 2: ukryj nogę powrotną */
+            .trip-leg:last-of-type { display: none; }
+
+            /* Kolumna 3: cena */
+            .trip-price {
+                grid-column: 3; grid-row: 1;
+                position: static;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 0;
+                text-align: right;
+            }
+            .trip-price-amount { font-size: 1.05rem; }
+            .trip-price-label { font-size: 0.6rem; }
+
+            /* Errors */
+            .errors-section { padding: 0 0.75rem 1.5rem; }
+            .error-item { font-size: 0.8rem; gap: 0.5rem; }
+        }
+
+        /* Very small phones */
+        @media (max-width: 360px) {
+            .dest-price-badge { font-size: 0.78rem; padding: 0.2rem 0.55rem; }
+            .dest-name { font-size: 0.88rem; }
+            .trip-price-amount { font-size: 1.2rem; }
         }
 
         /* ── FOOTER ── */

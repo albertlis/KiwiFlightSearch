@@ -23,7 +23,7 @@ class Settings:
     src_pwd: str | None = os.getenv("SRC_PWD")
     dst_mail: str | None = os.getenv("DST_MAIL")
     data_pickle: Path = Path(os.getenv("DATA_PICKLE", str(_PROJECT_ROOT / "data" / "date_price_list.pkl")))
-    output_html: Path = Path(os.getenv("OUTPUT_HTML", str(_PROJECT_ROOT / "data" / "flights.html")))
+    output_html: Path = Path(os.getenv("OUTPUT_HTML", str(_PROJECT_ROOT / "data" / "index.html")))
     nginx_dir: Path = Path(os.getenv("NGINX_DIR", "/var/www/kiwi"))
     public_url: str | None = os.getenv("PUBLIC_URL")
 

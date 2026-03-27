@@ -25,6 +25,7 @@ dependencies = [
   "lxml",
   "schedule",
   "playwright-stealth>=2.0.1",
+  "zstandard",
 ]
 
 [project.scripts]

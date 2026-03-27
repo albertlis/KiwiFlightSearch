@@ -81,7 +81,7 @@ class FlightProcessorWeekends(BaseFlightProcessor):
 
     # ------------- formatting --------------
     def _format_trips_to_html(self, trips: TripsDict, scrape_errors: list[ScrapeError] | None = None, lookup_errors: list[AirportLookupError] | None = None) -> str:
-        sorted_destinations = sorted(trips.items(), key=lambda it: it[1][0]['start_flight'].end_name if it[1] else '')
+        sorted_destinations = sorted(trips.items(), key=lambda it: it[1][0]['total_price'] if it[1] else float('inf'))
         formatted = []
         for iata, fls in sorted_destinations:
             if not fls:
@@ -92,7 +92,7 @@ class FlightProcessorWeekends(BaseFlightProcessor):
             by_week: dict[int, list] = {}
             for trip in fls:
                 by_week.setdefault(trip['start_flight'].week, []).append(trip)
-            for week, trips_list in sorted(by_week.items()):
+            for week, trips_list in by_week.items():
                 unique = list({str(t): t for t in trips_list}.values())
                 entries = []
                 for info in sorted(unique, key=lambda x: x['total_price']):
@@ -110,7 +110,8 @@ class FlightProcessorWeekends(BaseFlightProcessor):
                         'back_code': b.end,
                         'back_time': b.back_time.strftime('%H:%M'),
                     })
-                weeks.append({'week': week, 'trips': entries})
+                weeks.append({'week': week, 'trips': entries, 'lowest_price': entries[0]['total_price'] if entries else float('inf')})
+            weeks.sort(key=lambda w: w['lowest_price'])
             formatted.append({'destination_name': dest_name, 'iata': iata, 'lowest_price': lowest, 'weeks': weeks})
         templates_dir = Path(__file__).resolve().parents[2] / 'templates'
         env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=select_autoescape(['html', 'xml']))

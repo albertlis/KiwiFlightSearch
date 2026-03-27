@@ -296,14 +296,82 @@
 
         /* ── RESPONSIVE ── */
         @media (max-width: 640px) {
-            .trip-card {
-                grid-template-columns: 1fr 1fr;
-                grid-template-rows: auto auto;
+            /* Nazwa destynacji – zawija się zamiast znikać */
+            .dest-info {
+                flex: 1 1 0;
+                min-width: 0;
+                overflow: hidden;
             }
-            .trip-price { grid-column: 1; grid-row: 1; text-align: left; }
-            .trip-meta  { grid-column: 2; grid-row: 1; align-items: flex-end; }
-            .trip-leg:first-of-type  { grid-column: 1; grid-row: 2; }
-            .trip-leg:last-of-type   { grid-column: 2; grid-row: 2; }
+            .dest-name {
+                font-size: 0.95rem;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+                word-break: break-word;
+            }
+            .dest-iata { font-size: 0.7rem; }
+            .dest-price-badge {
+                font-size: 0.85rem;
+                padding: 0.25rem 0.7rem;
+                flex-shrink: 0;
+            }
+            .dest-count { display: none; }
+
+            /* Trip card: jedna pozioma linia — [emoji | lotnisko | cena] */
+            .trip-card {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                grid-template-rows: auto;
+                gap: 0 0.6rem;
+                padding: 0.65rem 0.85rem;
+                align-items: center;
+                position: static;
+            }
+
+            /* Kolumna 1: ikona */
+            .trip-meta {
+                grid-column: 1; grid-row: 1;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0.1rem;
+            }
+            .trip-meta-icon { font-size: 1.4rem; line-height: 1; }
+            .trip-meta-duration { font-size: 0.65rem; text-align: center; }
+
+            /* Kolumna 2: lotnisko docelowe */
+            .trip-leg:first-of-type {
+                grid-column: 2; grid-row: 1;
+                min-width: 0;
+            }
+            .trip-leg:first-of-type .trip-leg-airport {
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: var(--text);
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+                word-break: break-word;
+            }
+            .trip-leg:first-of-type .trip-leg-date,
+            .trip-leg:first-of-type .trip-leg-time,
+            .trip-leg:first-of-type .trip-leg-header { display: none; }
+
+            /* Ukryj nogę powrotną */
+            .trip-leg:last-of-type { display: none; }
+
+            /* Kolumna 3: cena */
+            .trip-price {
+                grid-column: 3; grid-row: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 0;
+                text-align: right;
+            }
+            .trip-price-amount { font-size: 1.05rem; }
+            .trip-price-label { font-size: 0.6rem; }
+
             .site-header { padding: 0.65rem 1rem; }
             .header-title { font-size: 1.1rem; }
         }

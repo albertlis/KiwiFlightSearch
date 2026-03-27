@@ -71,12 +71,28 @@ class _PlaywrightDriver(BasePlaywrightDriver):
         self._highlight(btn)
         btn.click()
         try:
+            # Triple the timeout – the privacy-settings modal can be slow to render
             discard = page.locator(self.discard_cookies_locator)
             discard.wait_for(state="visible", timeout=self.timeout)
             self._highlight(discard)
             discard.click()
+            logging.info("Cookie settings dismissed via save-settings button.")
         except PlaywrightTimeoutError:  # type: ignore[name-defined]
-            logging.info(f"No secondary cookie banner.")
+            logging.info("No secondary cookie banner.")
+
+        # Safety guard: wait for the privacy-settings modal to fully disappear
+        # before interacting with the main search form.
+        privacy_modal_locator = "div[aria-label='Ustawienia prywatności']"
+        try:
+            page.locator(privacy_modal_locator).wait_for(state="hidden", timeout=self.timeout)
+        except PlaywrightTimeoutError:
+            logging.warning("Privacy modal still visible – pressing Escape to dismiss.")
+            page.keyboard.press("Escape")
+            try:
+                page.locator(privacy_modal_locator).wait_for(state="hidden", timeout=self.timeout)
+            except PlaywrightTimeoutError:
+                logging.warning("Privacy modal persists after Escape – proceeding anyway.")
+
         direction_btn = page.locator(self.direction_button_locator).first
         self._highlight(direction_btn)
         direction_btn.click()
@@ -120,27 +136,92 @@ class _PlaywrightDriver(BasePlaywrightDriver):
 
         # --- attempt 2: search by city/airport name ---
         if fallback_name:
-            input_el.fill("")
-            input_el.fill(fallback_name)
-            row = page.locator(row_locator, has_text=airport_iata).first
             try:
-                row.wait_for(state="visible", timeout=self.timeout)
-                self._highlight(row)
-                name = row.inner_text()
-                row.click()
-                return name
-            except PlaywrightTimeoutError:
-                logging.warning(f"Fallback name '{fallback_name}' also failed for IATA '{airport_iata}'")
+                input_el.fill("", timeout=5000)
+                input_el.fill(fallback_name, timeout=self.timeout)
+            except Exception:
+                logging.warning(f"Could not fill fallback name '{fallback_name}' for IATA '{airport_iata}'")
+            else:
+                row = page.locator(row_locator, has_text=airport_iata).first
+                try:
+                    row.wait_for(state="visible", timeout=self.timeout)
+                    self._highlight(row)
+                    name = row.inner_text()
+                    row.click()
+                    return name
+                except PlaywrightTimeoutError:
+                    logging.warning(f"Fallback name '{fallback_name}' also failed for IATA '{airport_iata}'")
 
-        # Both attempts failed – clear the input and signal failure
-        input_el.fill("")
-        page.keyboard.press("Escape")
+        # Both attempts failed – try to clean up, then signal failure
+        # Escape FIRST to close any open dropdown, then clear the input
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+        try:
+            input_el.fill("", timeout=5_000)
+        except Exception:
+            pass
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(200)
+        except Exception:
+            pass
         raise AirportSelectionError(airport_iata, fallback_name)
 
+    def _dismiss_open_pickers(self, page: Page, attempts: int = 3, wait_ms: int = 300) -> None:
+        """Press Escape multiple times to close any open dropdowns/pickers."""
+        for _ in range(attempts):
+            try:
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(wait_ms)
+            except Exception:
+                break
+
+    def _reload_search_page(self, page: Page) -> None:
+        """Reload the search page and restore the search form settings."""
+        logging.info("Reloading search page…")
+        page.goto(self.url, wait_until="domcontentloaded")
+        # Cookies may not reappear – try anyway
+        for locator_str in [self.cookies_button_locator, self.discard_cookies_locator]:
+            try:
+                el = page.locator(locator_str)
+                el.wait_for(state="visible", timeout=4_000)
+                el.click()
+            except Exception:
+                pass
+        # Restore "one-way" mode
+        try:
+            direction_btn = page.locator(self.direction_button_locator).first
+            direction_btn.wait_for(state="visible", timeout=15_000)
+            direction_btn.click()
+            page.locator(self.one_way_ticket_locator).click()
+        except Exception:
+            logging.warning("Failed to restore 'one-way' mode after reload")
+        # Restore booking checkbox
+        try:
+            booking = page.locator(self.booking_label_locator).first
+            booking.wait_for(state="visible", timeout=5_000)
+            booking.click()
+        except Exception:
+            pass
+        logging.info("Page reloaded and form restored.")
+
     def choose_start_airport(self, page: Page, airport_iata: str, fallback_name: str | None = None) -> str:
+        # Zamknij wszelkie otwarte pickery zanim klikniemy przycisk X przy origin
+        self._dismiss_open_pickers(page)
         remove = page.locator(self.remove_start_airport_locator)
-        self._highlight(remove)
-        remove.click()
+        try:
+            remove.wait_for(state="visible", timeout=5_000)
+            self._highlight(remove)
+            remove.click(timeout=self.timeout // 2)
+        except Exception:
+            # Przycisk X nie odpowiada (overlay?) lub nie istnieje (puste pole po błędzie)
+            logging.warning(
+                f"Nie można kliknąć X przy origin (airport={airport_iata}) – przeładowuję stronę…"
+            )
+            self._reload_search_page(page)
         return self._try_select_airport(
             page, self.start_locator, self.start_airport_locator,
             airport_iata, fallback_name,
@@ -411,41 +492,48 @@ class PlaywrightScraper(_PlaywrightDriver):
 
             for dst_code in tqdm(remaining, desc=f'{desc} {start_name}', initial=skipped, total=len(iata_codes)):
                 dst_fallback = self.iata_to_name.get(dst_code)
-                if direction == 'poland_to_anywhere':
-                    try:
-                        dst_name = self.choose_destination_airport(page, dst_code, fallback_name=dst_fallback)
-                    except AirportSelectionError as e:
-                        logging.error(f"Skipping route: destination airport {e}")
-                        lookup_errors.append(AirportLookupError(dst_code, dst_fallback, 'destination', direction))
-                        done_iatas.add(dst_code)
-                        self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
-                        continue
-                    route_flights, failed_month = self._gather_route_prices(page, start_code, start_name, dst_code, dst_name)
-                    if failed_month is not None:
-                        errors.append(ScrapeError(start_code, start_name, dst_code, dst_name, direction, failed_month))
-                else:
-                    try:
-                        self.choose_start_airport(page, dst_code, fallback_name=dst_fallback)
-                    except AirportSelectionError as e:
-                        logging.error(f"Skipping route: origin airport {e}")
-                        lookup_errors.append(AirportLookupError(dst_code, dst_fallback, 'origin', direction))
-                        done_iatas.add(dst_code)
-                        self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
-                        continue
-                    try:
-                        dst_name = self.choose_destination_airport(page, start_code, fallback_name=start_fallback)
-                    except AirportSelectionError as e:
-                        logging.error(f"Skipping route: destination airport {e}")
-                        lookup_errors.append(AirportLookupError(start_code, start_fallback, 'destination', direction))
-                        done_iatas.add(dst_code)
-                        self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
-                        continue
-                    route_flights, failed_month = self._gather_route_prices(page, dst_code, dst_fallback or dst_code, start_code, start_name)
-                    if failed_month is not None:
-                        errors.append(ScrapeError(dst_code, dst_fallback or dst_code, start_code, start_name, direction, failed_month))
-                collected.extend(route_flights)
-                page.locator(self.destination_locator).click()
-                page.locator(self.remove_dst_airport_locator).click()
+                try:
+                    if direction == 'poland_to_anywhere':
+                        try:
+                            dst_name = self.choose_destination_airport(page, dst_code, fallback_name=dst_fallback)
+                        except AirportSelectionError as e:
+                            logging.error(f"Skipping route: destination airport {e}")
+                            lookup_errors.append(AirportLookupError(dst_code, dst_fallback, 'destination', direction))
+                            done_iatas.add(dst_code)
+                            self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
+                            continue
+                        route_flights, failed_month = self._gather_route_prices(page, start_code, start_name, dst_code, dst_name)
+                        if failed_month is not None:
+                            errors.append(ScrapeError(start_code, start_name, dst_code, dst_name, direction, failed_month))
+                    else:
+                        try:
+                            self.choose_start_airport(page, dst_code, fallback_name=dst_fallback)
+                        except AirportSelectionError as e:
+                            logging.error(f"Skipping route: origin airport {e}")
+                            lookup_errors.append(AirportLookupError(dst_code, dst_fallback, 'origin', direction))
+                            done_iatas.add(dst_code)
+                            self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
+                            continue
+                        try:
+                            dst_name = self.choose_destination_airport(page, start_code, fallback_name=start_fallback)
+                        except AirportSelectionError as e:
+                            logging.error(f"Skipping route: destination airport {e}")
+                            lookup_errors.append(AirportLookupError(start_code, start_fallback, 'destination', direction))
+                            done_iatas.add(dst_code)
+                            self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
+                            continue
+                        route_flights, failed_month = self._gather_route_prices(page, dst_code, dst_fallback or dst_code, start_code, start_name)
+                        if failed_month is not None:
+                            errors.append(ScrapeError(dst_code, dst_fallback or dst_code, start_code, start_name, direction, failed_month))
+                    collected.extend(route_flights)
+                    page.locator(self.destination_locator).click()
+                    page.locator(self.remove_dst_airport_locator).click()
+                    # Zamknij picker po usunięciu celu, żeby nie blokował kolejnej iteracji
+                    self._dismiss_open_pickers(page, attempts=2, wait_ms=200)
+                except Exception:
+                    label = f"{direction}_{start_code}_to_{dst_code}"
+                    self._dump_page_html(page, label=label)
+                    logging.exception(f"Unexpected error on route {start_code}→{dst_code} ({direction}) – skipping")
 
                 done_iatas.add(dst_code)
                 self._save_checkpoint(direction, start_code, done_iatas, collected, errors, lookup_errors)
@@ -453,40 +541,68 @@ class PlaywrightScraper(_PlaywrightDriver):
         self._delete_checkpoint(direction)
         return collected, errors, lookup_errors
 
+    # ------------------------------------------------------------------
+    # HTML failure dump helper
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _dump_page_html(page: "Page", label: str = "") -> Path:
+        """Save the current page HTML to a fixed file in the data directory.
+
+        Always writes to ``data/failure_dump.html``, overwriting any previous
+        dump.  The optional *label* is only included in the log message for
+        context.  Returns the path where the dump was written.
+        """
+        dump_path = DATA_DIR / "failure_dump.html"
+        try:
+            html_content = page.content()
+            dump_path.write_text(html_content, encoding="utf-8")
+            logging.error(f"[HTML DUMP] Page HTML saved to: {dump_path}" + (f" (label: {label})" if label else ""))
+        except Exception as dump_err:
+            logging.error(f"[HTML DUMP] Could not save page HTML: {dump_err}")
+        return dump_path
+
     def webscrap_flights(self):  # retains legacy name for compatibility
         with sync_playwright() as p:
             browser, page = self.get_page(p)
-            page.goto(self.url)
-            self.setup_main_page(page)
-            poland_to_anywhere, errors_pta, lookup_pta = self._collect_direction(page, 'poland_to_anywhere', 'From')
-            # save intermediate pickle next to configured data pickle
-            poland_pickle = settings.data_pickle.with_name('poland_to_anywhere.pkl')
-            with open(poland_pickle, 'wb') as f:
-                pickle.dump(poland_to_anywhere, f, pickle.HIGHEST_PROTOCOL)
-            anywhere_to_poland, errors_atp, lookup_atp = self._collect_direction(page, 'anywhere_to_poland', 'To')
-            scrape_errors = errors_pta + errors_atp
-            lookup_errors = lookup_pta + lookup_atp
-            flights = dict(poland_to_anywhere=poland_to_anywhere, anywhere_to_poland=anywhere_to_poland)
-            # save final pickle to configured location
-            with open(settings.data_pickle, 'wb') as f:
-                pickle.dump(flights, f, pickle.HIGHEST_PROTOCOL)
-            # save scrape errors pickle alongside data
-            errors_pickle = settings.data_pickle.with_name('scrape_errors.pkl')
-            with open(errors_pickle, 'wb') as f:
-                pickle.dump(scrape_errors, f, pickle.HIGHEST_PROTOCOL)
-            # save lookup errors pickle alongside data
-            lookup_errors_pickle = settings.data_pickle.with_name('lookup_errors.pkl')
-            with open(lookup_errors_pickle, 'wb') as f:
-                pickle.dump(lookup_errors, f, pickle.HIGHEST_PROTOCOL)
-            if scrape_errors:
-                logging.warning(f"Scraping finished with {len(scrape_errors)} route error(s):")
-                for err in scrape_errors:
-                    logging.warning(f"  {err.start_iata}→{err.dst_iata} ({err.direction}) failed at month '{err.failed_month}'")
-            if lookup_errors:
-                logging.warning(f"Scraping finished with {len(lookup_errors)} airport lookup error(s):")
-                for err in lookup_errors:
-                    logging.warning(
-                        f"  IATA '{err.iata}' (city: {err.city_name or '?'}) not found as {err.role} ({err.direction})"
-                    )
-            browser.close()
+            try:
+                page.goto(self.url)
+                self.setup_main_page(page)
+                poland_to_anywhere, errors_pta, lookup_pta = self._collect_direction(page, 'poland_to_anywhere', 'From')
+                # Zamknij ewentualnie otwarty picker po ostatniej trasie poland_to_anywhere
+                self._dismiss_open_pickers(page)
+                # save intermediate pickle next to configured data pickle
+                poland_pickle = settings.data_pickle.with_name('poland_to_anywhere.pkl')
+                with open(poland_pickle, 'wb') as f:
+                    pickle.dump(poland_to_anywhere, f, pickle.HIGHEST_PROTOCOL)
+                anywhere_to_poland, errors_atp, lookup_atp = self._collect_direction(page, 'anywhere_to_poland', 'To')
+                scrape_errors = errors_pta + errors_atp
+                lookup_errors = lookup_pta + lookup_atp
+                flights = dict(poland_to_anywhere=poland_to_anywhere, anywhere_to_poland=anywhere_to_poland)
+                # save final pickle to configured location
+                with open(settings.data_pickle, 'wb') as f:
+                    pickle.dump(flights, f, pickle.HIGHEST_PROTOCOL)
+                # save scrape errors pickle alongside data
+                errors_pickle = settings.data_pickle.with_name('scrape_errors.pkl')
+                with open(errors_pickle, 'wb') as f:
+                    pickle.dump(scrape_errors, f, pickle.HIGHEST_PROTOCOL)
+                # save lookup errors pickle alongside data
+                lookup_errors_pickle = settings.data_pickle.with_name('lookup_errors.pkl')
+                with open(lookup_errors_pickle, 'wb') as f:
+                    pickle.dump(lookup_errors, f, pickle.HIGHEST_PROTOCOL)
+                if scrape_errors:
+                    logging.warning(f"Scraping finished with {len(scrape_errors)} route error(s):")
+                    for err in scrape_errors:
+                        logging.warning(f"  {err.start_iata}→{err.dst_iata} ({err.direction}) failed at month '{err.failed_month}'")
+                if lookup_errors:
+                    logging.warning(f"Scraping finished with {len(lookup_errors)} airport lookup error(s):")
+                    for err in lookup_errors:
+                        logging.warning(
+                            f"  IATA '{err.iata}' (city: {err.city_name or '?'}) not found as {err.role} ({err.direction})"
+                        )
+            except Exception:
+                self._dump_page_html(page, label="webscrap_flights")
+                raise
+            finally:
+                browser.close()
             return OrderedDict(sorted(flights.items())), scrape_errors, lookup_errors

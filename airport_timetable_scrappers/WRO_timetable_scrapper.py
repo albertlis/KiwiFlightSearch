@@ -18,14 +18,15 @@ class WROTimetableScraper(BasePlaywrightDriver):
     """WRO timetable scraper — arrivals and departures."""
 
     url: str = TIMETABLE_URL
-    _ARRIVALS_DIV_ID = "n-flights-arrivals"
-    _DEPARTURES_DIV_ID = "n-flights-departures"
 
-    # Selectors
+    # Tab button selectors
     _ARRIVALS_BUTTON = "[data-id='n-flights-arrivals']"
     _DEPARTURES_BUTTON = "[data-id='n-flights-departures']"
-    _TABLE_ROWS = ".n-flights__wrap table tbody tr"
     _PRELOADER = ".preloader-flights"
+
+    # Content container selectors (scoped per tab, matched by id)
+    _ARRIVALS_CONTENT = "#n-flights-arrivals"
+    _DEPARTURES_CONTENT = "#n-flights-departures"
 
     def get_page(self, playwright):
         """Override base get_page — use larger viewport and Wrocław geolocation."""
@@ -35,26 +36,28 @@ class WROTimetableScraper(BasePlaywrightDriver):
         logger.debug("WRO viewport and geolocation applied.")
         return browser, page
 
-    def _wait_for_table(self, page: Page, timeout: int = 20_000) -> None:
-        """Wait until the preloader is gone and tbody has at least one row."""
+    def _wait_for_table(self, page: Page, content_selector: str, timeout: int = 20_000) -> None:
+        """Wait until the preloader is gone and the specific content container has at least one row."""
         page.wait_for_selector(self._PRELOADER, state="hidden", timeout=timeout)
-        page.wait_for_selector(self._TABLE_ROWS, state="attached", timeout=timeout)
+        row_selector = f"{content_selector} table tbody tr"
+        page.wait_for_selector(row_selector, state="attached", timeout=timeout)
 
-    def _get_tbody_html(self, page: Page) -> str:
-        """Return the outerHTML of the tbody inside .n-flights__wrap."""
-        tbody = page.locator(".n-flights__wrap table tbody").first
+    def _get_tbody_html(self, page: Page, content_selector: str) -> str:
+        """Return the outerHTML of the tbody inside the given content container."""
+        tbody_selector = f"{content_selector} table tbody"
+        tbody = page.locator(tbody_selector).first
         tbody.wait_for(state="attached", timeout=10_000)
         return tbody.evaluate("el => el.outerHTML")
 
-    def _click_tab_and_scrape(self, page: Page, button_selector: str, output_path: Path) -> None:
-        """Click a tab button, wait for data to load, then save the tbody HTML."""
+    def _click_tab_and_scrape(self, page: Page, button_selector: str, content_selector: str, output_path: Path) -> None:
+        """Click a tab button, wait for the correct section to load, then save the tbody HTML."""
         page.locator(button_selector).click()
-        self._wait_for_table(page)
-        html = self._get_tbody_html(page)
+        self._wait_for_table(page, content_selector)
+        html = self._get_tbody_html(page, content_selector)
         pretty_html = pretty_format_html(html)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(pretty_html, encoding="utf-8")
-        logger.info(f"Saved {button_selector} -> {output_path} ({len(pretty_html)} chars)")
+        logger.info(f"Saved {button_selector} ({content_selector}) -> {output_path} ({len(pretty_html)} chars)")
 
     def _dump_debug(self, page: Page, label: str) -> None:
         """Save a screenshot and full page HTML to html_for_scrapping/debug_*."""
@@ -82,9 +85,11 @@ class WROTimetableScraper(BasePlaywrightDriver):
         logger.info("Triggering user interaction to unblock WP Rocket lazy JS...")
         page.mouse.move(640, 450)
         page.mouse.move(641, 451)
-        # Click the arrivals tab button — this both triggers WP Rocket AND loads the data
+        # Click both tab buttons — triggers WP Rocket AND pre-loads data for each tab
         page.locator(self._ARRIVALS_BUTTON).click()
         logger.info("Arrivals tab clicked — waiting for AJAX...")
+        page.locator(self._DEPARTURES_BUTTON).click()
+        logger.info("Departures tab clicked — waiting for AJAX...")
 
     def scrape(self, debug: bool = False) -> None:
         """Main method — scrape arrivals and departures and save HTML files."""
@@ -100,7 +105,7 @@ class WROTimetableScraper(BasePlaywrightDriver):
                     self._dump_debug(page, "after_load")
 
                 try:
-                    self._click_tab_and_scrape(page, self._ARRIVALS_BUTTON, ARRIVALS_OUTPUT)
+                    self._click_tab_and_scrape(page, self._ARRIVALS_BUTTON, self._ARRIVALS_CONTENT, ARRIVALS_OUTPUT)
                 except Exception as e:
                     logger.error(f"[arrivals] Failed: {e}")
                     if debug:
@@ -108,7 +113,7 @@ class WROTimetableScraper(BasePlaywrightDriver):
                     raise
 
                 try:
-                    self._click_tab_and_scrape(page, self._DEPARTURES_BUTTON, DEPARTURES_OUTPUT)
+                    self._click_tab_and_scrape(page, self._DEPARTURES_BUTTON, self._DEPARTURES_CONTENT, DEPARTURES_OUTPUT)
                 except Exception as e:
                     logger.error(f"[departures] Failed: {e}")
                     if debug:

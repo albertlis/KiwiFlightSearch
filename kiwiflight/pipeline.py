@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Literal, Sequence
 
 import schedule
+import zstandard
 
 from kiwiflight.config import settings
 from kiwiflight.emailer import send_email, send_email_link
@@ -102,9 +103,13 @@ def run_pipeline(
     if nginx:
         dest_dir = settings.nginx_dir
         dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_file = dest_dir / settings.output_html.name
-        shutil.copy2(settings.output_html, dest_file)
-        logging.info(f"HTML copied to nginx directory: {dest_file}")
+        # Compress HTML directly to nginx directory as .zst (no temp file left behind)
+        dest_file = dest_dir / (settings.output_html.name + '.zst')
+        compressor = zstandard.ZstdCompressor()
+        with open(settings.output_html, 'rb') as f_in, open(dest_file, 'wb') as f_out:
+            compressor.copy_stream(f_in, f_out)
+        shutil.copy2(settings.output_html, dest_dir / settings.output_html.name)
+        logging.info(f"Compressed HTML (.zst) written to nginx directory: {dest_file}")
 
     if email_link:
         url = f"{settings.public_url.rstrip('/')}/{settings.output_html.name}"
@@ -145,6 +150,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Run the pipeline every day at the given time (e.g. 15:30). "
              "Without this flag the pipeline runs once and exits.",
     )
+    p.add_argument(
+        "--run-now",
+        action="store_true",
+        help="Trigger an immediate run before waiting for the scheduled time (only relevant with --schedule-at).",
+    )
     return p
 
 
@@ -181,7 +191,9 @@ def main_cli(argv: Sequence[str] | None = None) -> int:
 
     if args.schedule_at:
         logging.info(f"Scheduler started – pipeline will run every day at {args.schedule_at}")
-        _run()
+        if args.run_now:
+            logging.info("--run-now flag set – triggering immediate first run")
+            _run()
         schedule.every().day.at(args.schedule_at).do(_run)
         while True:
             try:
