@@ -1,7 +1,8 @@
 import logging
+
+from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
-from bs4 import BeautifulSoup
 
 
 def pretty_format_html(html: str) -> str:

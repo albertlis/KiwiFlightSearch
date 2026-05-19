@@ -2,7 +2,9 @@ import json
 import logging
 import re
 from collections import defaultdict
-from bs4 import BeautifulSoup
+from pathlib import Path
+
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from kiwiflight.logging_config import setup_logging
 
@@ -24,7 +26,9 @@ class PoznanTimetableScrapper:
 
     def parse_html(self, file_path: str) -> dict[str, list[dict[str, str]]]:
         logger.info(f"Parsing HTML file: {file_path}")
-        with open(file_path, "r", encoding="utf-8") as file:
+        # use Path.open() per linter recommendations and to avoid builtin-open warnings
+        path = Path(file_path)
+        with path.open(encoding="utf-8") as file:
             soup = BeautifulSoup(file, "html.parser")
 
         timetable = defaultdict(list)
@@ -38,23 +42,24 @@ class PoznanTimetableScrapper:
             flights_div = group_div.find_all("div", class_=self.flight_item_class)
 
             for f_div in flights_div:
-                start_time = f_div.find("span", string=self.start_time_label).find_next_sibling(string=True).strip()
-                landing_time = f_div.find("span", string=self.landing_time_label).find_next_sibling(string=True).strip()
+                # Safely extract adjacent text nodes; helper handles missing elements/whitespace
+                start_time = self._get_label_value(f_div, self.start_time_label)
+                landing_time = self._get_label_value(f_div, self.landing_time_label)
 
-                weekdays = (
-                    f_div.find("span", string=self.weekdays_label).find_next_sibling(string=True).strip().split(", ")
-                )
-                start_date = f_div.find("span", string=self.start_date_label).find_next_sibling(string=True).strip()
-                end_date = f_div.find("span", string=self.end_date_label).find_next_sibling(string=True).strip()
+                weekdays_str = self._get_label_value(f_div, self.weekdays_label)
+                weekdays = weekdays_str.split(", ") if weekdays_str else []
+
+                start_date = self._get_label_value(f_div, self.start_date_label)
+                end_date = self._get_label_value(f_div, self.end_date_label)
 
                 timetable[iata_code].append(
-                    dict(
-                        start_time=start_time,
-                        landing_time=landing_time,
-                        weekdays=weekdays,
-                        start_date=start_date,
-                        end_date=end_date,
-                    )
+                    {
+                        "start_time": start_time,
+                        "landing_time": landing_time,
+                        "weekdays": weekdays,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                    }
                 )
         logger.info(f"Processed {len(groups)} groups, found {len(timetable)} unique IATA codes")
         return timetable
@@ -65,12 +70,48 @@ class PoznanTimetableScrapper:
         departures = self.parse_html("../html_for_scrapping/POZ_timetable_departures.html")
         return {"arrivals": arrivals, "departures": departures}
 
+    def _get_label_value(self, container: Tag, label: str) -> str:
+        """Find a <span> whose .string equals `label` and return the stripped text
+        of the next meaningful sibling. Returns empty string if not found.
+        """
+        if container is None:
+            return ""
+
+        # container.find may return Tag, NavigableString or None
+        # After pretty-printing the HTML contains surrounding whitespace in span text,
+        # so use a regex that allows optional whitespace around the label.
+        label_tag: Tag | NavigableString | None = container.find(
+            "span", string=re.compile(r"^\s*" + re.escape(label) + r"\s*$")
+        )
+        if not label_tag:
+            return ""
+
+        # Prefer next_sibling traversal to capture plain text nodes and skip
+        # whitespace-only nodes.
+        sib = label_tag.next_sibling
+        # walk forward until we find a non-empty string or a Tag
+        while sib is not None:
+            if isinstance(sib, NavigableString):
+                text = str(sib).strip()
+                if text:
+                    return text
+            elif isinstance(sib, Tag):
+                text = sib.get_text(strip=True)
+                if text:
+                    return text
+            sib = getattr(sib, "next_sibling", None)
+
+        # fallback to find_next_sibling(text=True)
+        text_node = label_tag.find_next_sibling(text=True)
+        return str(text_node).strip() if text_node else ""
+
 
 if __name__ == "__main__":
     setup_logging()
     logger.info("Starting POZ timetable processing")
     timetable = PoznanTimetableScrapper().get_full_timetable()
-    output_path = "../timetables/POZ_timetable.json"
-    with open(output_path, "w", encoding="utf-8") as f:
+    output_path = Path("../timetables/POZ_timetable.json")
+    # write using Path.open to satisfy linters
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(timetable, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved processed timetable to {output_path}")
