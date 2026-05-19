@@ -2,6 +2,7 @@
 
 Isolated from application logic for easier mocking/testing.
 """
+
 import logging
 
 import yagmail
@@ -23,11 +24,7 @@ def send_email_link(subject: str, url: str) -> None:
     if not settings.email_configured():
         logging.warning("Email not sent: email credentials not fully configured.")
         return
-    html_body = (
-        f'<p>Nowe oferty lotów są dostępne.</p>'
-        f'<p><a href="{url}">{url}</a></p>'
-    )
+    html_body = f'<p>Nowe oferty lotów są dostępne.</p><p><a href="{url}">{url}</a></p>'
     yag = yagmail.SMTP(settings.src_mail, settings.src_pwd, port=587, smtp_starttls=True, smtp_ssl=False)
     yag.send(to=settings.dst_mail, subject=subject, contents=html_body)
     logging.info(f"Email (link) sent to {settings.dst_mail}")
-

@@ -10,6 +10,7 @@ class FlightInfo:
     start_time / back_time are enriched later by processors based on static timetable JSONs.
     week is an adjusted ISO week number used for grouping weekend trips (Monday shifted to previous week).
     """
+
     start: str
     start_name: str
     end: str
@@ -24,6 +25,7 @@ class FlightInfo:
 @dataclass(frozen=True, slots=True)
 class ScrapeError:
     """Represents a route that could not be scraped due to repeated timeouts."""
+
     start_iata: str
     start_name: str
     dst_iata: str
@@ -39,6 +41,7 @@ class AirportLookupError:
     Recorded when neither the IATA code nor the fallback city name produced
     a selectable result in the Kiwi search field.
     """
+
     iata: str
     city_name: str | None  # city name used for fallback (None if no mapping existed)
     role: str  # 'origin' or 'destination'
@@ -51,6 +54,7 @@ class FlightTimetable:
 
     weekdays: list[int] uses Python weekday numbering (Mon=0, Sun=6).
     """
+
     start_time: time
     landing_time: time
     weekdays: list[int]

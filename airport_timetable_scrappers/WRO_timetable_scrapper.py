@@ -113,7 +113,9 @@ class WROTimetableScraper(BasePlaywrightDriver):
                     raise
 
                 try:
-                    self._click_tab_and_scrape(page, self._DEPARTURES_BUTTON, self._DEPARTURES_CONTENT, DEPARTURES_OUTPUT)
+                    self._click_tab_and_scrape(
+                        page, self._DEPARTURES_BUTTON, self._DEPARTURES_CONTENT, DEPARTURES_OUTPUT
+                    )
                 except Exception as e:
                     logger.error(f"[departures] Failed: {e}")
                     if debug:
@@ -127,4 +129,3 @@ class WROTimetableScraper(BasePlaywrightDriver):
 if __name__ == "__main__":
     setup_logging()
     WROTimetableScraper().scrape(debug=False)
-

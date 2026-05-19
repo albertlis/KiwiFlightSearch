@@ -301,10 +301,10 @@
                 gap: 0.75rem;
                 padding: 0.85rem 0.9rem;
             }
-            .trip-price { grid-column: 1; grid-row: 1; text-align: left; }
-            .trip-meta  { grid-column: 2; grid-row: 1; align-items: flex-end; }
-            .trip-leg:first-of-type { grid-column: 1; grid-row: 2; }
-            .trip-leg:last-of-type  { grid-column: 2; grid-row: 2; }
+            .trip-price { grid-column: 1; grid-row: 2; text-align: left; }
+            .trip-meta  { grid-column: 2; grid-row: 2; align-items: flex-end; }
+            .trip-leg:nth-child(2) { grid-column: 1; grid-row: 1; }
+            .trip-leg:nth-child(3) { grid-column: 2; grid-row: 1; }
         }
 
         /* Mobile */
@@ -319,8 +319,8 @@
                 font-size: 1.05rem;
                 flex: 1 1 auto;
             }
-            /* stats badges - chowamy aktualizację, zostaje tylko liczba destynacji */
-            .header-stats:last-of-type { display: none; }
+            /* stats badges - aktualizacja widoczna, wypełnia miejsce obok toggle */
+            .header-stats:last-of-type { order: 5; flex: 1 1 auto; text-align: right; }
             .header-stats { font-size: 0.72rem; padding: 0.15rem 0.55rem; }
             .search-wrap {
                 order: 10;
@@ -362,20 +362,20 @@
             /* Week header */
             .week-header { font-size: 0.72rem; }
 
-            /* Trip card: jedna pozioma linia — [emoji | lotnisko | cena] */
+            /* Trip card: dwie linie — [emoji | wylot / powrót | cena] */
             .trip-card {
                 display: grid;
                 grid-template-columns: auto 1fr auto;
-                grid-template-rows: auto;
-                gap: 0 0.6rem;
+                grid-template-rows: auto auto;
+                gap: 0.15rem 0.6rem;
                 padding: 0.65rem 0.85rem;
-                align-items: center;
+                align-items: start;
                 position: static;
             }
 
-            /* Kolumna 1: ikona (z trip-meta) */
+            /* Kolumna 1, obie linie: ikona */
             .trip-meta {
-                grid-column: 1; grid-row: 1;
+                grid-column: 1; grid-row: 1 / span 2;
                 position: static;
                 transform: none;
                 flex-direction: column;
@@ -383,37 +383,51 @@
                 justify-content: center;
                 gap: 0.1rem;
             }
-            .trip-meta-icon { font-size: 1.4rem; line-height: 1; }
-            .trip-meta-duration { font-size: 0.65rem; text-align: center; }
+            .trip-meta-icon { font-size: 1.1rem; line-height: 1; }
+            .trip-meta-duration { font-size: 0.6rem; text-align: center; }
 
-            /* Kolumna 2: lotnisko docelowe (z pierwszej nogi) */
-            .trip-leg:first-of-type {
+            /* Kolumna 2, linia 1: wylot */
+            .trip-leg:nth-child(2) {
                 grid-column: 2; grid-row: 1;
+                display: flex;
                 min-width: 0;
             }
-            .trip-leg:first-of-type .trip-leg-airport {
-                font-size: 0.9rem;
-                font-weight: 600;
-                color: var(--text);
-                white-space: normal;
-                overflow: visible;
-                text-overflow: unset;
-                word-break: break-word;
+            .trip-leg:nth-child(2) .trip-leg-header { display: none; }
+            .trip-leg:nth-child(2) .trip-leg-date { font-size: 0.78rem; font-weight: 700; color: var(--accent); }
+            .trip-leg:nth-child(2) .trip-leg-airport {
+                font-size: 0.7rem;
+                color: var(--text-muted);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
-            .trip-leg:first-of-type .trip-leg-date,
-            .trip-leg:first-of-type .trip-leg-time,
-            .trip-leg:first-of-type .trip-leg-header { display: none; }
+            .trip-leg:nth-child(2) .trip-leg-time { font-size: 0.78rem; font-weight: 600; color: var(--text); }
 
-            /* Kolumna 2: ukryj nogę powrotną */
-            .trip-leg:last-of-type { display: none; }
+            /* Kolumna 2, linia 2: powrót */
+            .trip-leg:nth-child(3) {
+                grid-column: 2; grid-row: 2;
+                display: flex;
+                min-width: 0;
+            }
+            .trip-leg:nth-child(3) .trip-leg-header { display: none; }
+            .trip-leg:nth-child(3) .trip-leg-date { font-size: 0.78rem; font-weight: 700; color: var(--accent-2); }
+            .trip-leg:nth-child(3) .trip-leg-airport {
+                font-size: 0.7rem;
+                color: var(--text-muted);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .trip-leg:nth-child(3) .trip-leg-time { font-size: 0.78rem; font-weight: 600; color: var(--text); }
 
-            /* Kolumna 3: cena */
+            /* Kolumna 3, obie linie: cena */
             .trip-price {
-                grid-column: 3; grid-row: 1;
+                grid-column: 3; grid-row: 1 / span 2;
                 position: static;
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
+                justify-content: center;
                 gap: 0;
                 text-align: right;
             }
@@ -534,13 +548,13 @@
     <div id="no-results">😔 Brak destynacji pasujących do wyszukiwania.</div>
 
     {% for dest in destinations %}
-    <details class="destination-card" data-name="{{ dest.destination_name | lower }}" data-iata="{{ dest.iata | lower }}">
+    <details class="destination-card" data-name="{{ dest.destination_name | lower }}" data-iata="{{ dest.iata | lower }}" data-country="{{ dest.country | lower }}">
         <summary>
             <span class="dest-chevron">▶</span>
             <span class="dest-flag">🌴</span>
             <span class="dest-info">
                 <div class="dest-name">{{ dest.destination_name }}</div>
-                <div class="dest-iata">{{ dest.iata }}</div>
+                <div class="dest-iata">{{ dest.iata }}{% if dest.country %} · {{ dest.country }}{% endif %}</div>
             </span>
             <span class="dest-count">{{ dest.weeks | length }} tyg.</span>
             <span class="dest-price-badge">od {{ dest.lowest_price }} zł</span>
@@ -668,7 +682,7 @@
         const q = input.value.trim().toLowerCase();
         let visible = 0;
         cards.forEach(card => {
-            const match = !q || card.dataset.name.includes(q) || card.dataset.iata.includes(q);
+            const match = !q || card.dataset.name.includes(q) || card.dataset.iata.includes(q) || (card.dataset.country && card.dataset.country.includes(q));
             card.style.display = match ? '' : 'none';
             if (match) visible++;
         });

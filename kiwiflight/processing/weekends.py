@@ -8,6 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from tqdm import tqdm
 
 from .base import BaseFlightProcessor, TripsDict
+from ..country_lookup import get_country
 from ..models import AirportLookupError, FlightInfo, ScrapeError
 
 
@@ -28,8 +29,7 @@ class FlightProcessorWeekends(BaseFlightProcessor):
 
     @staticmethod
     def _find_available_trips(
-            poland_to_anywhere: dict[str, list[FlightInfo]],
-            anywhere_to_poland: dict[str, list[FlightInfo]]
+        poland_to_anywhere: dict[str, list[FlightInfo]], anywhere_to_poland: dict[str, list[FlightInfo]]
     ) -> TripsDict:
         possible_iatas = set(poland_to_anywhere) & set(anywhere_to_poland)
         available_trips: TripsDict = defaultdict(list)
@@ -47,23 +47,21 @@ class FlightProcessorWeekends(BaseFlightProcessor):
                     for b in by_week_back[week]:
                         if s.date > b.date:
                             continue
-                        available_trips[iata].append({
-                            'start_flight': s,
-                            'back_flight': b,
-                            'total_price': s.price + b.price
-                        })
+                        available_trips[iata].append(
+                            {"start_flight": s, "back_flight": b, "total_price": s.price + b.price}
+                        )
         for trips in available_trips.values():
-            trips.sort(key=lambda x: x['total_price'])
+            trips.sort(key=lambda x: x["total_price"])
         return available_trips
 
     def _filter_and_enrich_trips(self, available_trips: TripsDict) -> TripsDict:
         filtered: TripsDict = defaultdict(list)
-        for iata, trips in tqdm(available_trips.items(), desc='Filtering/enriching weekend trips', leave=False):
+        for iata, trips in tqdm(available_trips.items(), desc="Filtering/enriching weekend trips", leave=False):
             for trip in trips:
-                s: FlightInfo = trip['start_flight']
-                b: FlightInfo = trip['back_flight']
-                s_time = self.get_flight_time(s, 'departures')
-                b_time = self.get_flight_time(b, 'arrivals')
+                s: FlightInfo = trip["start_flight"]
+                b: FlightInfo = trip["back_flight"]
+                s_time = self.get_flight_time(s, "departures")
+                b_time = self.get_flight_time(b, "arrivals")
                 s.start_time = s_time
                 b.back_time = b_time
                 if s_time is None or b_time is None:
@@ -80,84 +78,114 @@ class FlightProcessorWeekends(BaseFlightProcessor):
         return filtered
 
     # ------------- formatting --------------
-    def _format_trips_to_html(self, trips: TripsDict, scrape_errors: list[ScrapeError] | None = None, lookup_errors: list[AirportLookupError] | None = None) -> str:
-        sorted_destinations = sorted(trips.items(), key=lambda it: it[1][0]['total_price'] if it[1] else float('inf'))
+    def _format_trips_to_html(
+        self,
+        trips: TripsDict,
+        scrape_errors: list[ScrapeError] | None = None,
+        lookup_errors: list[AirportLookupError] | None = None,
+    ) -> str:
+        sorted_destinations = sorted(trips.items(), key=lambda it: it[1][0]["total_price"] if it[1] else float("inf"))
         formatted = []
         for iata, fls in sorted_destinations:
             if not fls:
                 continue
-            dest_name = fls[0]['start_flight'].end_name
-            lowest = fls[0]['total_price']
+            dest_name = fls[0]["start_flight"].end_name
+            lowest = fls[0]["total_price"]
             weeks = []
             by_week: dict[int, list] = {}
             for trip in fls:
-                by_week.setdefault(trip['start_flight'].week, []).append(trip)
+                by_week.setdefault(trip["start_flight"].week, []).append(trip)
             for week, trips_list in by_week.items():
                 unique = list({str(t): t for t in trips_list}.values())
                 entries = []
-                for info in sorted(unique, key=lambda x: x['total_price']):
-                    s = info['start_flight']; b = info['back_flight']
+                for info in sorted(unique, key=lambda x: x["total_price"]):
+                    s = info["start_flight"]
+                    b = info["back_flight"]
                     duration = (b.date - s.date).days
-                    entries.append({
-                        'total_price': info['total_price'],
-                        'duration': duration,
-                        'start_date': s.date.strftime('%Y-%m-%d (%A)'),
-                        'start_name': s.start_name,
-                        'start_code': s.start,
-                        'start_time': s.start_time.strftime('%H:%M'),
-                        'back_date': b.date.strftime('%Y-%m-%d (%A)'),
-                        'back_name': b.end_name,
-                        'back_code': b.end,
-                        'back_time': b.back_time.strftime('%H:%M'),
-                    })
-                weeks.append({'week': week, 'trips': entries, 'lowest_price': entries[0]['total_price'] if entries else float('inf')})
-            weeks.sort(key=lambda w: w['lowest_price'])
-            formatted.append({'destination_name': dest_name, 'iata': iata, 'lowest_price': lowest, 'weeks': weeks})
-        templates_dir = Path(__file__).resolve().parents[2] / 'templates'
-        env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=select_autoescape(['html', 'xml']))
-        tpl = env.get_template('weekend_deals.html.j2')
+                    entries.append(
+                        {
+                            "total_price": info["total_price"],
+                            "duration": duration,
+                            "start_date": s.date.strftime("%Y-%m-%d (%A)"),
+                            "start_name": s.start_name,
+                            "start_code": s.start,
+                            "start_time": s.start_time.strftime("%H:%M"),
+                            "back_date": b.date.strftime("%Y-%m-%d (%A)"),
+                            "back_name": b.end_name,
+                            "back_code": b.end,
+                            "back_time": b.back_time.strftime("%H:%M"),
+                        }
+                    )
+                weeks.append(
+                    {
+                        "week": week,
+                        "trips": entries,
+                        "lowest_price": entries[0]["total_price"] if entries else float("inf"),
+                    }
+                )
+            weeks.sort(key=lambda w: w["lowest_price"])
+            formatted.append(
+                {
+                    "destination_name": dest_name,
+                    "iata": iata,
+                    "country": get_country(iata),
+                    "lowest_price": lowest,
+                    "weeks": weeks,
+                }
+            )
+        templates_dir = Path(__file__).resolve().parents[2] / "templates"
+        env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=select_autoescape(["html", "xml"]))
+        tpl = env.get_template("weekend_deals.html.j2")
         generated_at = datetime.now().strftime("%d.%m.%Y %H:%M")
         formatted_errors = []
-        for err in (scrape_errors or []):
-            formatted_errors.append({
-                'start_iata': err.start_iata,
-                'start_name': err.start_name,
-                'dst_iata': err.dst_iata,
-                'dst_name': err.dst_name,
-                'direction': err.direction,
-                'failed_month': err.failed_month,
-            })
+        for err in scrape_errors or []:
+            formatted_errors.append(
+                {
+                    "start_iata": err.start_iata,
+                    "start_name": err.start_name,
+                    "dst_iata": err.dst_iata,
+                    "dst_name": err.dst_name,
+                    "direction": err.direction,
+                    "failed_month": err.failed_month,
+                }
+            )
         formatted_lookup_errors = []
-        for err in (lookup_errors or []):
-            formatted_lookup_errors.append({
-                'iata': err.iata,
-                'city_name': err.city_name or '—',
-                'role': err.role,
-                'direction': err.direction,
-            })
+        for err in lookup_errors or []:
+            formatted_lookup_errors.append(
+                {
+                    "iata": err.iata,
+                    "city_name": err.city_name or "—",
+                    "role": err.role,
+                    "direction": err.direction,
+                }
+            )
         rendered = tpl.render(
             destinations=formatted,
             generated_at=generated_at,
             scrape_errors=formatted_errors,
             lookup_errors=formatted_lookup_errors,
         )
-        soup = BeautifulSoup(rendered, 'lxml')
+        soup = BeautifulSoup(rendered, "lxml")
         return soup.prettify()
 
     # ------------- public API --------------
-    def process_flights_info(self, data: dict[str, list[FlightInfo]], scrape_errors: list[ScrapeError] | None = None, lookup_errors: list[AirportLookupError] | None = None) -> str:
-        poland_to_anywhere = data['poland_to_anywhere']
-        anywhere_to_poland = data['anywhere_to_poland']
+    def process_flights_info(
+        self,
+        data: dict[str, list[FlightInfo]],
+        scrape_errors: list[ScrapeError] | None = None,
+        lookup_errors: list[AirportLookupError] | None = None,
+    ) -> str:
+        poland_to_anywhere = data["poland_to_anywhere"]
+        anywhere_to_poland = data["anywhere_to_poland"]
         self.convert_prices(poland_to_anywhere)
         self.convert_prices(anywhere_to_poland)
         poland_to_anywhere_filtered = self._filter_by_weekdays(poland_to_anywhere, self.start_weekdays)
         anywhere_to_poland_filtered = self._filter_by_weekdays(anywhere_to_poland, self.end_weekdays)
         poland_to_anywhere_filtered = self.filter_by_price(poland_to_anywhere_filtered, self.price_limit)
         anywhere_to_poland_filtered = self.filter_by_price(anywhere_to_poland_filtered, self.price_limit)
-        grouped_poland_to_anywhere = self.group_flights_by_key(poland_to_anywhere_filtered, 'end')
-        grouped_anywhere_to_poland = self.group_flights_by_key(anywhere_to_poland_filtered, 'start')
+        grouped_poland_to_anywhere = self.group_flights_by_key(poland_to_anywhere_filtered, "end")
+        grouped_anywhere_to_poland = self.group_flights_by_key(anywhere_to_poland_filtered, "start")
         available_trips = self._find_available_trips(grouped_poland_to_anywhere, grouped_anywhere_to_poland)
         available_trips = self._filter_and_enrich_trips(available_trips)
         available_trips = self.filter_by_total_price_flights(available_trips)
         return self._format_trips_to_html(available_trips, scrape_errors=scrape_errors, lookup_errors=lookup_errors)
-

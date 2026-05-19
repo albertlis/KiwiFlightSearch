@@ -4,7 +4,6 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 from kiwiflight.logging_config import setup_logging
-
 from kiwiflight.scraping.base_driver import BasePlaywrightDriver, pretty_format_html
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,7 @@ class KTWTimetableScraper(BasePlaywrightDriver):
     def _click_flight_type(self, page: Page, label_text: str) -> None:
         """Click the radio-label for the given tab (Arrivals or Departures)."""
         label = page.locator(
-            f"label.radio-button__label",
+            "label.radio-button__label",
             has_text=label_text,
         ).first
         label.wait_for(state="visible", timeout=10_000)
@@ -52,7 +51,6 @@ class KTWTimetableScraper(BasePlaywrightDriver):
         first_row = page.locator(self._TIMETABLE_ROW_SELECTOR).first
         first_row.wait_for(state="attached", timeout=10_000)
         return first_row.evaluate("el => el.parentElement.outerHTML")
-
 
     def _scrape_and_save(self, page: Page, label_text: str, output_path: Path) -> None:
         self._click_flight_type(page, label_text)

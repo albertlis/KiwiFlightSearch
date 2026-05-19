@@ -8,6 +8,7 @@ Usage patterns:
 2. Reuse previously pickled data (default) for faster iteration:
    run_pipeline(mode="weekend")
 """
+
 import argparse
 import logging
 import pickle
@@ -42,14 +43,14 @@ def _load_or_scrape(scrape: bool, start_month: str, end_month: str, iatas: Seque
         logging.info(f"Loading existing flights pickle {settings.data_pickle}")
         flights_data = pickle.load(f)
     # Load scrape errors if available
-    errors_pickle = settings.data_pickle.with_name('scrape_errors.pkl')
+    errors_pickle = settings.data_pickle.with_name("scrape_errors.pkl")
     scrape_errors: list[ScrapeError] = []
     if errors_pickle.exists():
         with open(errors_pickle, "rb") as f:
             scrape_errors = pickle.load(f)
         logging.info(f"Loaded {len(scrape_errors)} scrape error(s) from {errors_pickle}")
     # Load lookup errors if available
-    lookup_errors_pickle = settings.data_pickle.with_name('lookup_errors.pkl')
+    lookup_errors_pickle = settings.data_pickle.with_name("lookup_errors.pkl")
     lookup_errors: list[AirportLookupError] = []
     if lookup_errors_pickle.exists():
         with open(lookup_errors_pickle, "rb") as f:
@@ -59,24 +60,26 @@ def _load_or_scrape(scrape: bool, start_month: str, end_month: str, iatas: Seque
 
 
 def run_pipeline(
-        mode: ProcessorMode,
-        iatas: Sequence[str],
-        scrape: bool = False,
-        all_iatas: bool = False,
-        start_month: str = "kwiecień",
-        end_month: str = "październik",
-        duration_min_days: int = 4,
-        duration_max_days: int = 11,
-        duration_start_date: str | None = None,
-        duration_end_date: str | None = None,
-        weekend_min_hours: int = 10,
-        weekend_max_start_hour: int = 11,
-        price_limit: int = 500,
-        email: bool = False,
-        nginx: bool = False,
-        email_link: bool = False,
+    mode: ProcessorMode,
+    iatas: Sequence[str],
+    scrape: bool = False,
+    all_iatas: bool = False,
+    start_month: str = "kwiecień",
+    end_month: str = "październik",
+    duration_min_days: int = 4,
+    duration_max_days: int = 11,
+    duration_start_date: str | None = None,
+    duration_end_date: str | None = None,
+    weekend_min_hours: int = 10,
+    weekend_max_start_hour: int = 11,
+    price_limit: int = 500,
+    email: bool = False,
+    nginx: bool = False,
+    email_link: bool = False,
 ) -> Path:
-    flights_data, scrape_errors, lookup_errors = _load_or_scrape(scrape, start_month, end_month, iatas, all_iatas=all_iatas)
+    flights_data, scrape_errors, lookup_errors = _load_or_scrape(
+        scrape, start_month, end_month, iatas, all_iatas=all_iatas
+    )
 
     if mode == "duration":
         processor = FlightProcessorDuration(
@@ -104,9 +107,9 @@ def run_pipeline(
         dest_dir = settings.nginx_dir
         dest_dir.mkdir(parents=True, exist_ok=True)
         # Compress HTML directly to nginx directory as .zst (no temp file left behind)
-        dest_file = dest_dir / (settings.output_html.name + '.zst')
+        dest_file = dest_dir / (settings.output_html.name + ".zst")
         compressor = zstandard.ZstdCompressor()
-        with open(settings.output_html, 'rb') as f_in, open(dest_file, 'wb') as f_out:
+        with open(settings.output_html, "rb") as f_in, open(dest_file, "wb") as f_out:
             compressor.copy_stream(f_in, f_out)
         shutil.copy2(settings.output_html, dest_dir / settings.output_html.name)
         logging.info(f"Compressed HTML (.zst) written to nginx directory: {dest_file}")
@@ -125,7 +128,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=["weekend", "duration"], default="duration")
     p.add_argument("--iata", nargs="+", default=["WRO", "POZ", "KTW"], help="Origin airport IATA codes")
     p.add_argument("--scrape", action="store_true", help="Scrape fresh data instead of using pickle")
-    p.add_argument("--all-iatas", action="store_true", help="Search all available IATA codes instead of interesting_iatas.txt")
+    p.add_argument(
+        "--all-iatas", action="store_true", help="Search all available IATA codes instead of interesting_iatas.txt"
+    )
     p.add_argument("--start-month", default="sierpień")
     p.add_argument("--end-month", default="październik")
     # Duration mode specific
@@ -141,14 +146,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Misc
     p.add_argument("--email", action="store_true", help="Send email if credentials configured")
     p.add_argument("--nginx", action="store_true", help=f"Copy HTML to nginx directory ({settings.nginx_dir})")
-    p.add_argument("--email-link", action="store_true", help=f"Send email with link to {settings.public_url} instead of full HTML body")
+    p.add_argument(
+        "--email-link",
+        action="store_true",
+        help=f"Send email with link to {settings.public_url} instead of full HTML body",
+    )
     p.add_argument("--log-level", default="INFO")
     p.add_argument(
         "--schedule-at",
         metavar="HH:MM",
         default=None,
         help="Run the pipeline every day at the given time (e.g. 15:30). "
-             "Without this flag the pipeline runs once and exits.",
+        "Without this flag the pipeline runs once and exits.",
     )
     p.add_argument(
         "--run-now",
