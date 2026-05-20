@@ -24,6 +24,7 @@
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Processing Modes](#processing-modes)
+- [Airport Travel Cost Penalty](#airport-travel-cost-penalty)
 - [Scheduling](#scheduling)
 - [Development](#development)
 - [License](#license)
@@ -46,6 +47,7 @@ report and can be sent directly to your inbox or served via nginx.
 | 📅  | **Two search modes**: weekend getaways and flexible duration trips        |
 | 🗓️ | Static airport timetable enrichment (departure / arrival times per route) |
 | 💰  | Configurable price-limit filtering (default: 500 PLN)                     |
+| 🚗  | **Airport travel cost penalty** — per-airport surcharge (dojazd) added to total price in both directions |
 | 📧  | Optional e-mail delivery via `yagmail` (full HTML body or link)           |
 | 🌐  | Optional nginx integration — copy report to a web root directory          |
 | ⏰   | Built-in **daily scheduler** — run as a daemon with `--schedule-at`       |
@@ -192,6 +194,12 @@ NGINX_DIR=/var/www/kiwi
 
 # ── Public URL for email-link mode (optional, required for --email-link) ─────
 PUBLIC_URL=https://your-server.example.com
+
+# ── Airport travel cost penalty (PLN) — added to total price both ways ───────
+# e.g. WRO→KTW trip: flight prices + 0 + 150 = total
+PENALTY_WRO=0
+PENALTY_KTW=150
+PENALTY_POZ=60
 ```
 
 > ⚠️ **Never commit `.env` to version control.**
@@ -278,7 +286,32 @@ window (`--start-date` / `--end-date`). Ideal for planning longer holidays.
 
 ---
 
-## ⏰ Scheduling
+## 🚗 Airport Travel Cost Penalty
+
+Since different airports have different travel costs (taxi, train, etc.), each origin/return airport can have a
+configurable **penalty** added to the total trip price. This lets you compare trips from different airports on equal
+footing.
+
+The penalty is applied **both ways** — departure airport + return airport:
+
+```
+departure from KTW (150 zł) + return to POZ (60 zł) = 210 zł surcharge on total_price
+```
+
+Configure penalties in `.env`:
+
+```dotenv
+PENALTY_WRO=0
+PENALTY_KTW=150
+PENALTY_POZ=60
+```
+
+**Defaults** (if not set in `.env`):
+
+The penalty is visible in the HTML report — both in a summary banner at the top of the page and as a breakdown line
+under each trip's total price. The `--price-limit` filter is also applied **after** adding the penalty.
+
+
 
 The `--schedule-at HH:MM` flag turns the pipeline into a **long-running daemon** that executes once immediately and then
 repeats every day at the specified time.

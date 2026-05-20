@@ -15,8 +15,8 @@ from ..models import AirportLookupError, FlightInfo, ScrapeError
 class FlightProcessorWeekends(BaseFlightProcessor):
     """Find short weekend (or near-weekend) round trips subject to timing constraints."""
 
-    def __init__(self, price_limit: int, min_trip_hours: int, max_start_hour: int, iata_list: list[str]):
-        super().__init__(price_limit, iata_list)
+    def __init__(self, price_limit: int, min_trip_hours: int, max_start_hour: int, iata_list: list[str], penalty_map: dict[str, int] | None = None):
+        super().__init__(price_limit, iata_list, penalty_map=penalty_map)
         self.min_trip_hours = min_trip_hours
         self.start_weekdays = {4, 5}  # Fri, Sat
         self.end_weekdays = {6, 0, 1}  # Sun, Mon, Tue
@@ -27,8 +27,8 @@ class FlightProcessorWeekends(BaseFlightProcessor):
     def _filter_by_weekdays(data: Iterable[FlightInfo], weekdays: set[int]) -> list[FlightInfo]:
         return [f for f in data if f.date.weekday() in weekdays]
 
-    @staticmethod
     def _find_available_trips(
+        self,
         poland_to_anywhere: dict[str, list[FlightInfo]], anywhere_to_poland: dict[str, list[FlightInfo]]
     ) -> TripsDict:
         possible_iatas = set(poland_to_anywhere) & set(anywhere_to_poland)
@@ -47,8 +47,9 @@ class FlightProcessorWeekends(BaseFlightProcessor):
                     for b in by_week_back[week]:
                         if s.date > b.date:
                             continue
+                        penalty = self.airport_penalty(s.start, b.end)
                         available_trips[iata].append(
-                            {"start_flight": s, "back_flight": b, "total_price": s.price + b.price}
+                            {"start_flight": s, "back_flight": b, "penalty": penalty, "total_price": s.price + b.price + penalty}
                         )
         for trips in available_trips.values():
             trips.sort(key=lambda x: x["total_price"])
@@ -105,6 +106,7 @@ class FlightProcessorWeekends(BaseFlightProcessor):
                     entries.append(
                         {
                             "total_price": info["total_price"],
+                            "penalty": info.get("penalty", 0),
                             "duration": duration,
                             "start_date": s.date.strftime("%Y-%m-%d (%A)"),
                             "start_name": s.start_name,
@@ -164,6 +166,7 @@ class FlightProcessorWeekends(BaseFlightProcessor):
             generated_at=generated_at,
             scrape_errors=formatted_errors,
             lookup_errors=formatted_lookup_errors,
+            penalty_map=self.penalty_map,
         )
         soup = BeautifulSoup(rendered, "lxml")
         return soup.prettify()

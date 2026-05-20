@@ -446,6 +446,47 @@
             .trip-price-amount { font-size: 1.2rem; }
         }
 
+        /* ── PENALTY INFO ── */
+        .penalty-banner {
+            max-width: 1100px;
+            margin: 0 auto 1.25rem;
+            padding: 0 1.25rem;
+        }
+        .penalty-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .penalty-title {
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .penalty-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.15rem 0.65rem;
+            white-space: nowrap;
+        }
+        .penalty-item-iata { font-weight: 700; color: var(--text); }
+        .penalty-item-cost { color: var(--accent); font-weight: 600; }
+        .trip-price-penalty {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+
         /* ── FOOTER ── */
         .site-footer {
             text-align: center;
@@ -545,6 +586,20 @@
 </header>
 
 <main class="main">
+    {% if penalty_map %}
+    <div class="penalty-banner">
+        <div class="penalty-card">
+            <span class="penalty-title">🚗 Koszt dojazdu do lotniska:</span>
+            {% for iata, cost in penalty_map.items() | sort %}
+            <span class="penalty-item">
+                <span class="penalty-item-iata">{{ iata }}</span>
+                <span class="penalty-item-cost">{{ cost }} zł</span>
+            </span>
+            {% endfor %}
+            <span style="font-size:0.75rem; color: var(--text-muted);">· doliczany w każdą stronę do łącznej ceny</span>
+        </div>
+    </div>
+    {% endif %}
     <div id="no-results">😔 Brak destynacji pasujących do wyszukiwania.</div>
 
     {% for dest in destinations %}
@@ -574,6 +629,7 @@
                         <div class="trip-price">
                             <div class="trip-price-amount">{{ trip.total_price }} zł</div>
                             <div class="trip-price-label">💰 łącznie</div>
+                            {% if trip.penalty %}<div class="trip-price-penalty">w tym {{ trip.penalty }} zł dojazd</div>{% endif %}
                         </div>
 
                         <div class="trip-leg">

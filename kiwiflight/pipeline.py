@@ -89,6 +89,7 @@ def run_pipeline(
             iata_list=list(iatas),
             start_date=duration_start_date,
             end_date=duration_end_date,
+            penalty_map=settings.airport_penalty_map,
         )
     else:
         processor = FlightProcessorWeekends(
@@ -96,6 +97,7 @@ def run_pipeline(
             min_trip_hours=weekend_min_hours,
             max_start_hour=weekend_max_start_hour,
             iata_list=list(iatas),
+            penalty_map=settings.airport_penalty_map,
         )
 
     logging.info(f"Processing flights using '{mode}' mode")

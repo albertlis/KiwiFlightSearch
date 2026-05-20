@@ -25,8 +25,9 @@ class FlightProcessorDuration(BaseFlightProcessor):
         iata_list: list[str],
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        penalty_map: dict[str, int] | None = None,
     ):
-        super().__init__(price_limit, iata_list)
+        super().__init__(price_limit, iata_list, penalty_map=penalty_map)
         self.min_trip_days = min_trip_days
         self.max_trip_days = max_trip_days
         self.start_date: Optional[date] = datetime.strptime(start_date, "%d.%m.%Y").date() if start_date else None
@@ -54,10 +55,12 @@ class FlightProcessorDuration(BaseFlightProcessor):
                 continue
             for back_flight in back_flights:
                 if self._is_valid_trip(start_flight, back_flight):
+                    penalty = self.airport_penalty(start_flight.start, back_flight.end)
                     yield {
                         "start_flight": start_flight,
                         "back_flight": back_flight,
-                        "total_price": start_flight.price + back_flight.price,
+                        "penalty": penalty,
+                        "total_price": start_flight.price + back_flight.price + penalty,
                     }
 
     # ---------------- core steps -----------------
@@ -110,6 +113,7 @@ class FlightProcessorDuration(BaseFlightProcessor):
                 trips_list.append(
                     {
                         "total_price": info["total_price"],
+                        "penalty": info.get("penalty", 0),
                         "duration": duration,
                         "start_date": s.date.strftime("%Y-%m-%d (%A)"),
                         "start_name": s.start_name,
@@ -162,6 +166,7 @@ class FlightProcessorDuration(BaseFlightProcessor):
             generated_at=generated_at,
             scrape_errors=formatted_errors,
             lookup_errors=formatted_lookup_errors,
+            penalty_map=self.penalty_map,
         )
         soup = BeautifulSoup(rendered, "lxml")
         return soup.prettify()

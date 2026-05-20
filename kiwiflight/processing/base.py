@@ -16,8 +16,9 @@ TripsDict: TypeAlias = dict[str, list[dict[str, FlightInfo | int]]]
 class BaseFlightProcessor(ABC):
     """Common helpers for concrete flight processors."""
 
-    def __init__(self, price_limit: int, iata_list: list[str]):
+    def __init__(self, price_limit: int, iata_list: list[str], penalty_map: dict[str, int] | None = None):
         self.price_limit = price_limit
+        self.penalty_map: dict[str, int] = penalty_map or {}
         self.timetables: dict[str, dict[str, dict[str, list[FlightTimetable]]]] = {}
         timetables_path = Path(__file__).resolve().parents[2] / "timetables"
         for iata in iata_list:
@@ -94,6 +95,10 @@ class BaseFlightProcessor(ABC):
         return flights_info
 
     # ---------------- Filtering / grouping -----------------
+    def airport_penalty(self, start_iata: str, end_iata: str) -> int:
+        """Return total travel penalty (PLN) for a round trip: departure + return airport."""
+        return self.penalty_map.get(start_iata, 0) + self.penalty_map.get(end_iata, 0)
+
     @staticmethod
     def filter_by_price(data: list[FlightInfo], price_limit: int) -> list[FlightInfo]:
         return [f for f in data if f.price < price_limit]
