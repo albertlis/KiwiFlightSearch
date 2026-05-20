@@ -18,6 +18,7 @@
 
 - [Overview](#overview)
 - [Features](#features)
+- [Results Preview](#-results-preview)
 - [Project Structure](#project-structure)
 - [Timetable Pipeline](#timetable-pipeline)
 - [Installation](#installation)
@@ -41,18 +42,42 @@ report and can be sent directly to your inbox or served via nginx.
 
 ## ✨ Features
 
-| #   | Feature                                                                   |
-|-----|---------------------------------------------------------------------------|
-| 🕷️ | **Playwright-based scraper** with stealth mode to avoid bot detection     |
-| 📅  | **Two search modes**: weekend getaways and flexible duration trips        |
-| 🗓️ | Static airport timetable enrichment (departure / arrival times per route) |
-| 💰  | Configurable price-limit filtering (default: 500 PLN)                     |
+| #   | Feature                                                                                                  |
+|-----|----------------------------------------------------------------------------------------------------------|
+| 🕷️ | **Playwright-based scraper** with stealth mode to avoid bot detection                                    |
+| 📅  | **Two search modes**: weekend getaways and flexible duration trips                                       |
+| 🗓️ | Static airport timetable enrichment (departure / arrival times per route)                                |
+| 💰  | Configurable price-limit filtering (default: 500 PLN)                                                    |
 | 🚗  | **Airport travel cost penalty** — per-airport surcharge (dojazd) added to total price in both directions |
-| 📧  | Optional e-mail delivery via `yagmail` (full HTML body or link)           |
-| 🌐  | Optional nginx integration — copy report to a web root directory          |
-| ⏰   | Built-in **daily scheduler** — run as a daemon with `--schedule-at`       |
-| 🧩  | Modular pipeline — reuse cached pickle to iterate without re-scraping     |
-| 🖨️ | Jinja2-templated HTML reports                                             |
+| 📧  | Optional e-mail delivery via `yagmail` (full HTML body or link)                                          |
+| 🌐  | Optional nginx integration — copy report to a web root directory                                         |
+| ⏰   | Built-in **daily scheduler** — run as a daemon with `--schedule-at`                                      |
+| 🧩  | Modular pipeline — reuse cached pickle to iterate without re-scraping                                    |
+| 🖨️ | Jinja2-templated HTML reports                                                                            |
+
+---
+
+## 📸 Results Preview
+
+KiwiFlightSearch generates clean, informative HTML reports delivered to your inbox or served via nginx. Below are
+example reports as seen on mobile:
+
+<div align="center">
+  <table>
+    <tr>
+      <th align="center">🏖️ Weekend Deals</th>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="docs/1.png" alt="Weekend Deals Report" width="340">
+      </td>
+      <td align="center">
+        <img src="docs/2.png" alt="Duration Deals Report" width="340">
+      </td>
+    </tr>
+  </table>
+</div>
+
 
 ---
 
@@ -311,8 +336,6 @@ PENALTY_POZ=60
 The penalty is visible in the HTML report — both in a summary banner at the top of the page and as a breakdown line
 under each trip's total price. The `--price-limit` filter is also applied **after** adding the penalty.
 
-
-
 The `--schedule-at HH:MM` flag turns the pipeline into a **long-running daemon** that executes once immediately and then
 repeats every day at the specified time.
 
@@ -372,4 +395,5 @@ uv sync --group dev
 
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)](LICENSE)
 
-You are free to share and adapt this project for **non-commercial purposes**, as long as you give appropriate credit and distribute any derivative works under the same license. See the [LICENSE](LICENSE) file for the full text.
+You are free to share and adapt this project for **non-commercial purposes**, as long as you give appropriate credit and
+distribute any derivative works under the same license. See the [LICENSE](LICENSE) file for the full text.
