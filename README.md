@@ -8,7 +8,7 @@
 > backward-incompatible API, CLI, and data-format changes — may be introduced at any time without prior notice.
 
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 ![uv](https://img.shields.io/badge/managed%20by-uv-purple?logo=astral)
 ![Playwright](https://img.shields.io/badge/scraper-Playwright-orange?logo=playwright)
 
@@ -370,4 +370,6 @@ uv sync --group dev
 
 ## 📄 License
 
-[MIT](LICENSE)
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)](LICENSE)
+
+You are free to share and adapt this project for **non-commercial purposes**, as long as you give appropriate credit and distribute any derivative works under the same license. See the [LICENSE](LICENSE) file for the full text.
